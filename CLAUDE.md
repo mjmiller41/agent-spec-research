@@ -1,8 +1,7 @@
 # Claude Agent Guidelines
 
-This repository follows the universal agent guidelines defined in [AGENTS.md](AGENTS.md) and the [OKF v0.2 Specification](SPEC.md).
+All agent operating procedures, core rules, authoring contracts, research workflows, citation standards, digital primary source handling, and maintenance chain requirements are defined in [AGENTS.md](AGENTS.md).
 
-## Quick Start
-* **Initialize bundle**: `okf init --bundle ./bundle`
-* **Scaffold concept**: `okf template <template_name> --out bundle/<folder>/<concept>.md`
-* **After every change**: Run `okf validate && okf index && okf log Update "<message>" && okf viz`
+Agents must read and adhere to [AGENTS.md](AGENTS.md) as the single source of truth for this workspace.
+
+

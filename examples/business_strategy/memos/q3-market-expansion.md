@@ -31,4 +31,7 @@ Competitive pressure from [Acme Corp](/competitors/acme-corp.md) in domestic seg
 2. **Pricing Harmonization**: Implement currency hedging and local payment options outlined in [Pricing Tier Revision](/memos/pricing-tier-revision.md).
 3. **Regulatory Compliance**: Complete GDPR and SOC2 Type II attestations.
 
-[^global-saas-index-2026]: Global Enterprise SaaS Adoption Benchmark 2026
+# References & Footnotes
+
+[^global-saas-index-2026]: Corporate Strategy Group (2026, January). "Global Enterprise SaaS Adoption Benchmark 2026" [Internal Research Report]. *Market Analytics Division*. https://analytics.company.com/market/global-index-2026. Retrieved 2026-08-31.
+

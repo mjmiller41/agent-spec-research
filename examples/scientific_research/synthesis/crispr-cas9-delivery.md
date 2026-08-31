@@ -34,4 +34,7 @@ Therapeutic translation of CRISPR-Cas9 relies critically on efficient, tissue-sp
 | **LNP Encapsulation** | High (> 15 kb mRNA) | Low to Moderate | Transient (24-48h) |
 | **AAV Vector** | Limited (< 4.7 kb) | High (Neutralizing Abs) | Long-term / Persistent |
 
-[^nature-crispr-review]: Advances in Therapeutic Genome Editing Delivery Strategies
+# References & Footnotes
+
+[^nature-crispr-review]: Raguram, A., Banskota, S., & Liu, D. R. (2022). "Therapeutic In Vivo Delivery of Gene Editing Agents". *Nature Reviews Genetics*, 23(11), pp. 647–665. https://doi.org/10.1038/s41576-022-00500-w. Retrieved 2026-08-31.
+

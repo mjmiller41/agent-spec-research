@@ -48,5 +48,8 @@ We recommend proceeding with **Option B** for Phase 1 to capture immediate deman
 2. Review baseline unit economics with [CAC Computation](/metrics/customer-acquisition-cost.md).
 3. Schedule 30-day milestone review.
 
-[^internal-q2-review]: Q2 2026 Corporate Financial & Operational Review
-[^industry-market-report]: 2026 Global Enterprise Software Market Dynamics
+# References & Footnotes
+
+[^internal-q2-review]: Enterprise Financial Operations Group (2026, July 15). "Q2 2026 Corporate Financial & Operational Review" [Internal Report]. *Corporate Planning Division*. https://internal.company.com/reports/2026-q2-financials. Retrieved 2026-08-31.
+[^industry-market-report]: Gartner Research (2026). "2026 Global Enterprise Software Market Dynamics & Regional Expansion Analysis". *Gartner Strategic Advisory Reports*, G0078921. https://analysts.example.com/reports/saas-trends-2026. Retrieved 2026-08-31.
+

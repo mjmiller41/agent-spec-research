@@ -30,4 +30,7 @@ The mission was propelled to orbit by the [Saturn V Stage 1](/telemetry/saturn-v
 
 The successful landing on the Sea of Tranquility fulfilled national space exploration objectives and catalyzed decades of aerospace advancements.
 
-[^nasa-mission-report-1969]: NASA Apollo 11 Mission Report MSC-00171
+# References & Footnotes
+
+[^nasa-mission-report-1969]: NASA Manned Spacecraft Center (1969, November). "Apollo 11 Mission Report" (Report MSC-00171). *NASA Historical Data Archives*. https://history.nasa.gov/apollo11/report.html. Retrieved 2026-08-31.
+

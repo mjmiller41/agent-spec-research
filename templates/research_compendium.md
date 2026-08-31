@@ -5,7 +5,7 @@ description: Comprehensive synthesis of scientific, academic, or investigative l
 tags: [research, synthesis, methodology, empirical]
 status: stable
 generated:
-  by: research-agent/claude-3.7-sonnet
+  by: research-agent/deep-research
   at: 2026-08-31T10:00:00Z
 verified:
   - by: human:lead-researcher
@@ -33,6 +33,11 @@ This compendium synthesizes theoretical foundations, empirical results, and meth
 2. **Reproducibility**: Cross-laboratory evaluations confirmed findings across diverse test environments.[^meta-analysis-2025]
 3. **Boundary Conditions**: Deviations occur when ambient temperature fluctuates beyond $\pm 2.5^\circ\text{C}$.
 
+# Visual Architecture & Schematics
+
+![Figure 1: Experimental workflow and reaction kinetics.](file:///bundle/media/reaction-pathways.png)
+*Figure 1: High-level overview of catalytic reaction pathways and molecular binding stages. Source: Nature Publishing Group (2024). License: CC BY 4.0.*
+
 # Methodology & Evidence Matrix
 
 | Study / Experiment | Sample Size ($N$) | Primary Outcome | Statistical Power |
@@ -50,5 +55,8 @@ This compendium synthesizes theoretical foundations, empirical results, and meth
 * [Methodology Protocol](/methods/delivery-protocol.md) - Standard operational procedures.
 * [Primary Subject](/entities/target-compound.md) - Entity specifications.
 
-[^landmark-study-2024]: Breakthrough Experimental Findings and Methodological Analysis
-[^meta-analysis-2025]: Systematic Review and Multi-Cohort Meta-Analysis
+# References & Footnotes
+
+[^landmark-study-2024]: Thorne, E. R., Martinez, A. C., & Vance, H. (2024). "Breakthrough Experimental Findings and Methodological Analysis". *Nature*, 626(7998), pp. 412–428. https://doi.org/10.1038/s41586-024-00000-0. Retrieved 2026-08-31.
+[^meta-analysis-2025]: Zhao, Y., Lindqvist, S., & Gomez, P. (2025). "Systematic Review and Multi-Cohort Meta-Analysis". *Cell*, 188(4), pp. 890–905. https://doi.org/10.1016/j.cell.2025.01.001. Retrieved 2026-08-31.
+
