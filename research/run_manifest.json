@@ -1,0 +1,27 @@
+{
+  "version": "3.0.0",
+  "query": "Optimal format, language, and formal specifications for machine-only LLM agent instructions with deep theoretical and empirical backing",
+  "mode": "ultradeep",
+  "started_at": "2026-08-31T16:08:48.078388+00:00",
+  "finished_at": "2026-08-31T16:08:48.078388+00:00",
+  "assumptions": [
+    {
+      "assumption_id": "asm_849201a1",
+      "text": "Human readability is non-essential; primary targets are zero-overhead token density, attention boundaries, and syntax enforcement.",
+      "materiality": "high",
+      "status": "user_confirmed"
+    }
+  ],
+  "provider_config": {
+    "primary": "search-web",
+    "scholarly": "openalex"
+  },
+  "report_dir": "/run/media/michael/storage/Code/cli-agent-okf/bundle",
+  "artifact_paths": {
+    "sources": "research/sources.jsonl",
+    "evidence": "research/evidence.jsonl",
+    "claims": "research/claims.jsonl",
+    "report": "bundle/index.md"
+  },
+  "continuation": null
+}
