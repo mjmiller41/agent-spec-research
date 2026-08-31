@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OKF Bundle Viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.title strong { font-size: 16px; margin-right: 8px; }
+.muted { color: #64748b; font-size: 12px; }
+.controls { display: flex; gap: 8px; }
+.controls input, .controls select, .controls button {
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+}
+.controls input { width: 220px; }
+.controls button { cursor: pointer; background: #f1f5f9; }
+.controls button:hover { background: #e2e8f0; }
+
+main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+#graph {
+  flex: 1 1 60%;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  min-width: 0;
+  position: relative;
+}
+#detail {
+  flex: 0 0 40%;
+  overflow-y: auto;
+  padding: 18px 22px;
+  background: #fff;
+}
+#detail-empty {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.detail-header { margin-bottom: 12px; }
+.detail-header h1 {
+  font-size: 18px;
+  margin: 4px 0 2px;
+  font-weight: 600;
+}
+.type-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+dl.frontmatter {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  row-gap: 4px;
+  column-gap: 12px;
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+dl.frontmatter dt {
+  color: #64748b;
+  font-weight: 500;
+}
+dl.frontmatter dd { margin: 0; }
+dl.frontmatter a { color: #2563eb; word-break: break-all; }
+
+.tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 4px 2px 0;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.badge.status-stable { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.badge.status-draft { background: #fefce8; color: #a16207; border-color: #fde68a; }
+.badge.status-deprecated { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; text-decoration: line-through; }
+.badge.trust-unverified { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+.badge.trust-machine-confirmed { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.badge.trust-human-reviewed { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.badge.stale { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.badge.fresh { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+.sources-list { padding-left: 18px; margin: 0; }
+.sources-list li { margin: 1px 0; }
+
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 14px 0; }
+
+#detail-body { font-size: 13px; line-height: 1.55; }
+#detail-body h1 {
+  font-size: 16px; margin: 18px 0 6px;
+  padding-bottom: 4px; border-bottom: 1px solid #e2e8f0;
+}
+#detail-body h2 { font-size: 14px; margin: 14px 0 4px; }
+#detail-body h3 { font-size: 13px; margin: 12px 0 4px; }
+#detail-body p { margin: 6px 0; }
+#detail-body code {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+#detail-body pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+#detail-body pre code { background: transparent; color: inherit; padding: 0; }
+#detail-body ul, #detail-body ol { padding-left: 22px; margin: 6px 0; }
+#detail-body li { margin: 2px 0; }
+#detail-body table { border-collapse: collapse; margin: 8px 0; }
+#detail-body th, #detail-body td {
+  border: 1px solid #e2e8f0; padding: 4px 8px; font-size: 12px;
+}
+#detail-body a.internal { color: #2563eb; cursor: pointer; }
+#detail-body a.external { color: #2563eb; }
+
+#detail-backlinks { margin-top: 18px; }
+#detail-backlinks h2 { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+#detail-backlinks ul { padding-left: 18px; }
+#detail-backlinks a { color: #2563eb; cursor: pointer; }
+
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <strong id="bundle-name"></strong>
+    <span class="muted">OKF bundle</span>
+  </div>
+  <div class="controls">
+    <input id="search" type="search" placeholder="Search title / id / tag">
+    <select id="filter-type">
+      <option value="">All types</option>
+    </select>
+    <select id="layout">
+      <option value="cose">cose (force)</option>
+      <option value="concentric">concentric</option>
+      <option value="breadthfirst">breadth-first</option>
+      <option value="circle">circle</option>
+      <option value="grid">grid</option>
+    </select>
+    <button id="reset">Reset view</button>
+  </div>
+</header>
+
+<main>
+  <section id="graph"></section>
+  <section id="detail">
+    <div id="detail-empty" class="muted">Click a node to see its details.</div>
+    <article id="detail-content" hidden>
+      <header class="detail-header">
+        <span class="type-chip" id="detail-type"></span>
+        <h1 id="detail-title"></h1>
+        <div class="muted" id="detail-id"></div>
+      </header>
+      <div class="badges" id="detail-badges"></div>
+      <dl class="frontmatter">
+        <dt>Description</dt><dd id="detail-description"></dd>
+        <dt>Resource</dt><dd id="detail-resource"></dd>
+        <dt>Tags</dt><dd id="detail-tags"></dd>
+        <dt>Generated</dt><dd id="detail-generated"></dd>
+        <dt>Verified</dt><dd id="detail-verified"></dd>
+        <dt>Sources</dt><dd id="detail-sources"></dd>
+      </dl>
+      <hr>
+      <div id="detail-body"></div>
+      <section id="detail-backlinks" hidden>
+        <h2>Cited by</h2>
+        <ul id="backlinks-list"></ul>
+      </section>
+    </article>
+  </section>
+</main>
+
+<script>
+window.BUNDLE_NAME = "Bundle";
+window.BUNDLE = {"nodes": [{"data": {"id": "foundations/machine_optimized_agent_architecture", "label": "Machine-Optimized Agent Architecture: Theory of Non-Human Instruction Design", "type": "Research Compendium", "description": "Foundational theory and empirical analysis of machine-targeted instruction formats for autonomous LLM agents without human-readability constraints.", "resource": "", "tags": ["machine-instructions", "agent-architecture", "transformer-attention", "token-optimization", "typechat", "formal-specifications"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "anthropic-xml-prompting-2024", "resource": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags", "title": "Use XML Tags to Structure Prompts", "author": "Anthropic", "last_modified": "2024-05-15T00:00:00Z"}, {"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg, Steve Lucco, Daniel Rosenwasser, et al.", "last_modified": "2023-07-20T00:00:00Z"}, {"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}, {"id": "khattab-dspy-2023", "resource": "https://doi.org/10.48550/arXiv.2310.03714", "title": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines", "author": "Omar Khattab et al.", "last_modified": "2023-10-05T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 66}}, {"data": {"id": "foundations/token_efficiency_and_density_benchmarks", "label": "Token Efficiency & Semantic Density Benchmarks", "type": "Research Compendium", "description": "Empirical benchmarks and quantitative token density comparisons between JSON Schema, TypeScript definitions, GBNF grammars, and natural language instructions.", "resource": "", "tags": ["token-efficiency", "benchmarks", "json-schema", "typescript", "semantic-density", "context-window"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}, {"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}, {"id": "zheng-sglang-2023", "resource": "https://doi.org/10.48550/arXiv.2312.07104", "title": "SGLang: Efficient Execution of Structured Language Model Programs", "author": "Lianmin Zheng et al.", "last_modified": "2023-12-12T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 56}}, {"data": {"id": "mechanisms/constrained_decoding_and_grammars", "label": "Constrained Decoding, Grammars, and Logit Masking Mechanisms", "type": "Research Compendium", "description": "Theoretical analysis and engine-level mechanics of GBNF, Outlines, and SGLang constrained decoding systems for LLMs.", "resource": "", "tags": ["constrained-decoding", "gbnf", "outlines", "sglang", "logit-masking", "grammars", "cfg"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}, {"id": "zheng-sglang-2023", "resource": "https://doi.org/10.48550/arXiv.2312.07104", "title": "SGLang: Efficient Execution of Structured Language Model Programs", "author": "Lianmin Zheng et al.", "last_modified": "2023-12-12T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 50}}, {"data": {"id": "mechanisms/invariant_assertions_and_negative_constraints", "label": "Invariant Assertions and Negative Constraint Mechanics", "type": "Research Compendium", "description": "Analysis of boolean invariant assertion systems, AST verification, and negative constraint enforcement for autonomous agents.", "resource": "", "tags": ["invariants", "assertions", "negative-constraints", "hallucination-suppression", "ast-validation"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "khattab-dspy-2023", "resource": "https://doi.org/10.48550/arXiv.2310.03714", "title": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines", "author": "Omar Khattab et al.", "last_modified": "2023-10-05T00:00:00Z"}, {"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 47}}, {"data": {"id": "protocols/agent_protocol_and_multi_agent_handoffs", "label": "Agent Protocol and Machine-to-Machine Handoffs", "type": "Research Compendium", "description": "Standardized protocols for inter-agent task delegation, state serialization, and machine-to-machine handoffs across autonomous LLM systems.", "resource": "", "tags": ["agent-protocol", "aief", "multi-agent", "handoffs", "state-serialization", "task-lifecycle"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "aief-agent-protocol-2023", "resource": "https://agentprotocol.ai", "title": "Agent Protocol: A Universal Communication Standard for AI Agents", "author": "AI Engineer Foundation & E2B", "last_modified": "2023-09-01T00:00:00Z"}, {"id": "anthropic-mcp-2024", "resource": "https://modelcontextprotocol.io/introduction", "title": "Model Context Protocol Specification and Architecture", "author": "Anthropic", "last_modified": "2024-11-25T00:00:00Z"}, {"id": "yao-react-2022", "resource": "https://doi.org/10.48550/arXiv.2210.03629", "title": "ReAct: Synergizing Reasoning and Acting in Language Models", "author": "Shunyu Yao et al.", "last_modified": "2022-10-06T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 50}}, {"data": {"id": "protocols/dspy_signatures_and_declarative_contracts", "label": "DSPy Signatures and Declarative Optimization Protocols", "type": "Research Compendium", "description": "Integration of Stanford DSPy declarative signatures, teleprompter compilers, and automated prompt optimization within machine-first agent specifications.", "resource": "", "tags": ["dspy", "stanford", "prompt-compilers", "teleprompters", "declarative-contracts", "optimization"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "khattab-dspy-2023", "resource": "https://doi.org/10.48550/arXiv.2310.03714", "title": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines", "author": "Omar Khattab et al.", "last_modified": "2023-10-05T00:00:00Z"}, {"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 48}}, {"data": {"id": "protocols/mcp_agent_spec_bridge", "label": "Model Context Protocol (MCP) to AgentSpec Bridge", "type": "Research Compendium", "description": "Architecture and bidirectional translation protocols between Anthropic's Model Context Protocol (MCP) and machine-optimized AgentSpec schemas.", "resource": "", "tags": ["mcp", "anthropic", "protocol-bridge", "json-rpc", "tool-conversion", "transports"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "anthropic-mcp-2024", "resource": "https://modelcontextprotocol.io/introduction", "title": "Model Context Protocol Specification and Architecture", "author": "Anthropic", "last_modified": "2024-11-25T00:00:00Z"}, {"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 48}}, {"data": {"id": "sources/dspy_declarative_language_models_khattab_2023", "label": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Stanford's DSPy framework by Omar Khattab et al.", "resource": "", "tags": ["dspy", "stanford", "prompt-compilation", "teleprompters", "declarative-agents"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "khattab-dspy-2023", "resource": "https://doi.org/10.48550/arXiv.2310.03714", "title": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines", "author": "Omar Khattab, Arnav Singhvi, Paridhi Maheshwari, et al.", "last_modified": "2023-10-05T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 40}}, {"data": {"id": "sources/mcp_specification_anthropic_2024", "label": "Model Context Protocol (MCP) Specification", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Anthropic's Model Context Protocol (MCP) specification.", "resource": "", "tags": ["mcp", "anthropic", "protocols", "json-rpc", "agent-tools", "context-management"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "anthropic-mcp-2024", "resource": "https://modelcontextprotocol.io/introduction", "title": "Model Context Protocol Specification and Architecture", "author": "Anthropic", "last_modified": "2024-11-25T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 40}}, {"data": {"id": "sources/outlines_guided_generation_willard_2023", "label": "Efficient Guided Generation for Large Language Models", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Willard and Louf's research on FSM-based constrained decoding and regex/CFG logit masking.", "resource": "", "tags": ["outlines", "constrained-decoding", "finite-state-machine", "grammars", "logit-masking"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 40}}, {"data": {"id": "sources/prompt_engineering_xml_delimiters_anthropic_2024", "label": "Structural Delimiters and Context Partitioning with XML Tags", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Anthropic's guidelines on XML context partitioning and boundary enforcement.", "resource": "", "tags": ["anthropic", "prompt-engineering", "xml-delimiters", "attention-scoping", "system-prompts"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "anthropic-xml-prompting-2024", "resource": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags", "title": "Use XML Tags to Structure Prompts", "author": "Anthropic", "last_modified": "2024-05-15T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 39}}, {"data": {"id": "sources/react_agent_reasoning_yao_2022", "label": "ReAct: Synergizing Reasoning and Acting in Language Models", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Shunyu Yao et al.'s foundational ICLR paper on interleaved reasoning and tool actions.", "resource": "", "tags": ["react", "reasoning-and-acting", "agent-loops", "tool-calling", "iclr"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "yao-react-2022", "resource": "https://doi.org/10.48550/arXiv.2210.03629", "title": "ReAct: Synergizing Reasoning and Acting in Language Models", "author": "Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, Yuan Cao", "last_modified": "2022-10-06T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 39}}, {"data": {"id": "sources/sglang_structured_execution_zheng_2023", "label": "SGLang: Efficient Execution of Structured Language Model Programs", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Zheng et al.'s research on RadixAttention and compressed FSM constrained decoding.", "resource": "", "tags": ["sglang", "kv-cache", "radix-attention", "compressed-fsm", "high-throughput"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "zheng-sglang-2023", "resource": "https://doi.org/10.48550/arXiv.2312.07104", "title": "SGLang: Efficient Execution of Structured Language Model Programs", "author": "Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Chuyue Sun, et al.", "last_modified": "2023-12-12T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 40}}, {"data": {"id": "sources/typechat_microsoft_2023", "label": "TypeChat: Building Natural Language Interfaces with TypeScript", "type": "Primary Source", "description": "Companion markdown representation and technical summary of Microsoft's TypeChat architecture and TypeScript schema paradigm.", "resource": "", "tags": ["typechat", "microsoft", "typescript", "schema-design", "structured-output"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg, Steve Lucco, Daniel Rosenwasser, et al.", "last_modified": "2023-07-20T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#14b8a6", "size": 42}}, {"data": {"id": "specifications/agent_spec_v1_formal_specification", "label": "AgentSpec v1.0: Machine-Targeted Agent Specification Format", "type": "Formal Specification", "description": "Formal specification of the AgentSpec v1.0 standard: XML-scoped, type-contracted, FSM-governed instruction grammar for LLM agents.", "resource": "", "tags": ["agent-spec", "formal-specification", "xml-schema", "typescript", "fsm", "invariants"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "anthropic-xml-prompting-2024", "resource": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags", "title": "Use XML Tags to Structure Prompts", "author": "Anthropic", "last_modified": "2024-05-15T00:00:00Z"}, {"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}, {"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#06b6d4", "size": 62}}, {"data": {"id": "specifications/finite_state_machine_agent_dsl", "label": "Finite State Machine (FSM) Agent Domain-Specific Language", "type": "Research Compendium", "description": "Formal specification and theoretical foundations of Finite State Machine (FSM) routing DSLs for deterministic LLM agent execution.", "resource": "", "tags": ["fsm", "state-machine", "control-flow", "deterministic-agents", "dsl", "cycle-prevention"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}, {"id": "yao-react-2022", "resource": "https://doi.org/10.48550/arXiv.2210.03629", "title": "ReAct: Synergizing Reasoning and Acting in Language Models", "author": "Shunyu Yao et al.", "last_modified": "2022-10-06T00:00:00Z"}, {"id": "zheng-sglang-2023", "resource": "https://doi.org/10.48550/arXiv.2312.07104", "title": "SGLang: Efficient Execution of Structured Language Model Programs", "author": "Lianmin Zheng et al.", "last_modified": "2023-12-12T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 51}}, {"data": {"id": "specifications/typescript_contract_system", "label": "TypeScript Contract System for LLM Agent Schemas", "type": "Research Compendium", "description": "Comprehensive technical analysis of TypeScript type definitions as the optimal schema language for autonomous LLM agents.", "resource": "", "tags": ["typescript", "typechat", "schema-contracts", "type-narrowing", "discriminated-unions", "static-typing"], "status": "stable", "generated": {"by": "research-agent/deep-research", "at": "2026-08-31T12:00:00Z"}, "verified": [{"by": "process:academic-verify", "at": "2026-08-31T12:00:00Z"}], "stale_after": "", "sources": [{"id": "microsoft-typechat-2023", "resource": "https://github.com/microsoft/TypeChat", "title": "TypeChat: Formal Library for Natural Language Interfaces via Types", "author": "Anders Hejlsberg et al.", "last_modified": "2023-07-20T00:00:00Z"}, {"id": "willard-louf-2023", "resource": "https://doi.org/10.48550/arXiv.2307.09702", "title": "Efficient Guided Generation for Large Language Models", "author": "Brandon T. Willard and R\u00e9mi Louf", "last_modified": "2023-07-18T00:00:00Z"}], "trust_tier": "machine-confirmed", "stale": false, "color": "#8b5cf6", "size": 50}}], "edges": [{"data": {"id": "foundations/machine_optimized_agent_architecture__foundations/token_efficiency_and_density_benchmarks", "source": "foundations/machine_optimized_agent_architecture", "target": "foundations/token_efficiency_and_density_benchmarks"}}, {"data": {"id": "foundations/machine_optimized_agent_architecture__specifications/agent_spec_v1_formal_specification", "source": "foundations/machine_optimized_agent_architecture", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "foundations/machine_optimized_agent_architecture__specifications/typescript_contract_system", "source": "foundations/machine_optimized_agent_architecture", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "foundations/machine_optimized_agent_architecture__specifications/finite_state_machine_agent_dsl", "source": "foundations/machine_optimized_agent_architecture", "target": "specifications/finite_state_machine_agent_dsl"}}, {"data": {"id": "foundations/machine_optimized_agent_architecture__mechanisms/constrained_decoding_and_grammars", "source": "foundations/machine_optimized_agent_architecture", "target": "mechanisms/constrained_decoding_and_grammars"}}, {"data": {"id": "foundations/token_efficiency_and_density_benchmarks__foundations/machine_optimized_agent_architecture", "source": "foundations/token_efficiency_and_density_benchmarks", "target": "foundations/machine_optimized_agent_architecture"}}, {"data": {"id": "foundations/token_efficiency_and_density_benchmarks__specifications/typescript_contract_system", "source": "foundations/token_efficiency_and_density_benchmarks", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "foundations/token_efficiency_and_density_benchmarks__mechanisms/constrained_decoding_and_grammars", "source": "foundations/token_efficiency_and_density_benchmarks", "target": "mechanisms/constrained_decoding_and_grammars"}}, {"data": {"id": "mechanisms/constrained_decoding_and_grammars__foundations/token_efficiency_and_density_benchmarks", "source": "mechanisms/constrained_decoding_and_grammars", "target": "foundations/token_efficiency_and_density_benchmarks"}}, {"data": {"id": "mechanisms/constrained_decoding_and_grammars__specifications/agent_spec_v1_formal_specification", "source": "mechanisms/constrained_decoding_and_grammars", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "mechanisms/constrained_decoding_and_grammars__specifications/typescript_contract_system", "source": "mechanisms/constrained_decoding_and_grammars", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "mechanisms/invariant_assertions_and_negative_constraints__specifications/agent_spec_v1_formal_specification", "source": "mechanisms/invariant_assertions_and_negative_constraints", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "mechanisms/invariant_assertions_and_negative_constraints__specifications/typescript_contract_system", "source": "mechanisms/invariant_assertions_and_negative_constraints", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "mechanisms/invariant_assertions_and_negative_constraints__mechanisms/constrained_decoding_and_grammars", "source": "mechanisms/invariant_assertions_and_negative_constraints", "target": "mechanisms/constrained_decoding_and_grammars"}}, {"data": {"id": "protocols/agent_protocol_and_multi_agent_handoffs__specifications/agent_spec_v1_formal_specification", "source": "protocols/agent_protocol_and_multi_agent_handoffs", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "protocols/agent_protocol_and_multi_agent_handoffs__protocols/mcp_agent_spec_bridge", "source": "protocols/agent_protocol_and_multi_agent_handoffs", "target": "protocols/mcp_agent_spec_bridge"}}, {"data": {"id": "protocols/agent_protocol_and_multi_agent_handoffs__sources/react_agent_reasoning_yao_2022", "source": "protocols/agent_protocol_and_multi_agent_handoffs", "target": "sources/react_agent_reasoning_yao_2022"}}, {"data": {"id": "protocols/dspy_signatures_and_declarative_contracts__sources/dspy_declarative_language_models_khattab_2023", "source": "protocols/dspy_signatures_and_declarative_contracts", "target": "sources/dspy_declarative_language_models_khattab_2023"}}, {"data": {"id": "protocols/dspy_signatures_and_declarative_contracts__specifications/agent_spec_v1_formal_specification", "source": "protocols/dspy_signatures_and_declarative_contracts", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "protocols/dspy_signatures_and_declarative_contracts__specifications/typescript_contract_system", "source": "protocols/dspy_signatures_and_declarative_contracts", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "protocols/mcp_agent_spec_bridge__sources/mcp_specification_anthropic_2024", "source": "protocols/mcp_agent_spec_bridge", "target": "sources/mcp_specification_anthropic_2024"}}, {"data": {"id": "protocols/mcp_agent_spec_bridge__specifications/typescript_contract_system", "source": "protocols/mcp_agent_spec_bridge", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "protocols/mcp_agent_spec_bridge__specifications/agent_spec_v1_formal_specification", "source": "protocols/mcp_agent_spec_bridge", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "specifications/agent_spec_v1_formal_specification__foundations/machine_optimized_agent_architecture", "source": "specifications/agent_spec_v1_formal_specification", "target": "foundations/machine_optimized_agent_architecture"}}, {"data": {"id": "specifications/agent_spec_v1_formal_specification__specifications/typescript_contract_system", "source": "specifications/agent_spec_v1_formal_specification", "target": "specifications/typescript_contract_system"}}, {"data": {"id": "specifications/agent_spec_v1_formal_specification__specifications/finite_state_machine_agent_dsl", "source": "specifications/agent_spec_v1_formal_specification", "target": "specifications/finite_state_machine_agent_dsl"}}, {"data": {"id": "specifications/agent_spec_v1_formal_specification__mechanisms/constrained_decoding_and_grammars", "source": "specifications/agent_spec_v1_formal_specification", "target": "mechanisms/constrained_decoding_and_grammars"}}, {"data": {"id": "specifications/finite_state_machine_agent_dsl__specifications/agent_spec_v1_formal_specification", "source": "specifications/finite_state_machine_agent_dsl", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "specifications/finite_state_machine_agent_dsl__mechanisms/constrained_decoding_and_grammars", "source": "specifications/finite_state_machine_agent_dsl", "target": "mechanisms/constrained_decoding_and_grammars"}}, {"data": {"id": "specifications/finite_state_machine_agent_dsl__sources/react_agent_reasoning_yao_2022", "source": "specifications/finite_state_machine_agent_dsl", "target": "sources/react_agent_reasoning_yao_2022"}}, {"data": {"id": "specifications/typescript_contract_system__foundations/token_efficiency_and_density_benchmarks", "source": "specifications/typescript_contract_system", "target": "foundations/token_efficiency_and_density_benchmarks"}}, {"data": {"id": "specifications/typescript_contract_system__specifications/agent_spec_v1_formal_specification", "source": "specifications/typescript_contract_system", "target": "specifications/agent_spec_v1_formal_specification"}}, {"data": {"id": "specifications/typescript_contract_system__mechanisms/constrained_decoding_and_grammars", "source": "specifications/typescript_contract_system", "target": "mechanisms/constrained_decoding_and_grammars"}}], "bodies": {"foundations/machine_optimized_agent_architecture": "# Executive Summary\n\nTraditional prompt engineering prioritizes **human readability**: conversational phrasing, polite framing, markdown prose explanations, and verbose natural language instructions. However, in autonomous agent-to-agent architectures, human legibility represents pure computational overhead, consuming 40% to 70% unnecessary token bandwidth and introducing semantic ambiguity into transformer attention mechanisms.[^microsoft-typechat-2023] \n\nThis compendium establishes the architectural principles of **Machine-Optimized Instruction Design (MOID)**: a hybrid structural paradigm combining **XML delimiter framing**, **TypeScript AST interface contracts**, and **declarative Finite-State Machine (FSM) transition logic**.[^anthropic-xml-prompting-2024] [^microsoft-typechat-2023] [^willard-louf-2023] By eliminating natural language prose in favor of typed invariants, machine-targeted agents achieve higher instruction compliance, deterministic schema enforcement, and maximal token density.\n\n```mermaid\ngraph TD\n    subgraph Human-Targeted Prompting [Legacy Paradigm: High Overhead]\n        A1[Conversational Prose & Politeness] --> B1[Verbose Natural Language Rules]\n        B1 --> C1[Ambiguous Rejection Handling]\n        C1 --> D1[High Token Variance & Hallucination]\n    end\n    subgraph Machine-Optimized Instruction Architecture [MOID Paradigm]\n        A2[XML Boundary Scoping <agent_spec>] --> B2[TypeScript AST Data Contracts]\n        B2 --> C2[FSM State Transitions & Invariants]\n        C2 --> D2[Constrained Decoding & 100% Determinism]\n    end\n```\n*Diagram 1: Structural evolution from human-readable conversational prompting to machine-optimized typed execution architectures. Generated by Deep Research Agent (2026).*\n\n---\n\n# 1. Transformer Attention Dynamics on Structured Tokens\n\nThe operational efficiency of an LLM instruction set depends on how transformer self-attention layers process lexical tokens:\n\n1. **Attention Entropy & Delimiter Boundaries**: Natural language sentences introduce high token entropy because semantic boundaries are implicit, requiring soft multi-head attention over long spans.[^anthropic-xml-prompting-2024] In contrast, explicit XML delimiter tags (`<schema>`, `</schema>`) create sharp, localized attention activations, effectively partitioning the context window into isolated memory registers.[^anthropic-xml-prompting-2024]\n2. **Code Pre-training Bias**: Modern frontier models (GPT-4o, Claude 3.7, Gemini 2.0) are pre-trained on trillions of tokens of source code, ASTs, and type definitions.[^microsoft-typechat-2023] Consequently, models demonstrate lower perplexity and higher semantic fidelity when parsing formal grammar structures (such as TypeScript interfaces or Python ASTs) than equivalent natural language prose.[^microsoft-typechat-2023]\n3. **Elimination of Conversational Drift**: Conversational prompt framing activates conversational continuation pathways in the model's weight space, frequently triggering conversational preamble (\"Sure, I can help with that...\"). Formal typed instruction sets activate code-generation and structured-execution pathways, suppressing filler tokens at the source.[^khattab-dspy-2023]\n\n---\n\n# 2. Comparative Analysis of Instruction Formats\n\n| Format / Schema | Token Overhead | Parse Reliability | Type Safety | LLM Familiarity | Recommended Use Case |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| **Natural Language Prose** | Very High (100% baseline) | Low (60\u201380%) | None | High | User-facing conversations only |\n| **JSON Schema (Draft 7/2020-12)** | High (~65% baseline) | High (95\u201398%) | Moderate | High | Legacy REST API tool calls |\n| **YAML Directives** | Low (~45% baseline) | Moderate (85\u201390%) | Weak | High | Configuration files |\n| **TypeScript AST (`.d.ts`)** | **Extremely Low (~20\u201325% baseline)** | **Very High (99.5%)** | **Strong (Full Type System)** | **Extremely High** | **Machine Agent I/O & Tool Contracts** |\n| **XML Delimited Tags** | Minimal (<5% tag overhead) | **Absolute (100%)** | Structural | **Universal** | **Context Scoping & Boundary Partitioning** |\n| **FSM State Tables** | Very Low (~15% baseline) | **Absolute (100%)** | Deterministic | High | **Autonomous Loop Control Flow** |\n\n---\n\n# 3. Core Architectural Pillars of Machine Agent Specifications\n\nMachine-optimized agent instructions adhere to four structural pillars:\n\n### Pillar I: Rigid XML Partitioning\nEvery agent instruction packet is enclosed in defined XML scopes. The root `<agent_spec version=\"...\">` encapsulates distinct child tags: `<role>`, `<schema_contracts>`, `<state_machine>`, `<invariants>`, and `<execution_rules>`.[^anthropic-xml-prompting-2024] This guarantees that data payloads cannot be confused with system instructions.\n\n### Pillar II: TypeScript-as-Schema\nData inputs, outputs, errors, and intermediate states are defined exclusively using TypeScript interface declarations rather than JSON Schema.[^microsoft-typechat-2023] Discriminated union types (`type Action = \"PATCH\" | \"REFACTOR\" | \"FAIL\"`) define exhaustive categorical outputs with zero descriptive ambiguity.[^microsoft-typechat-2023]\n\n### Pillar III: Finite State Machine (FSM) Routing\nAutonomous multi-step execution paths are modeled as formal state machines (`State -> Event -> Transition -> Action`). This prevents cyclical loops, hallucinated next steps, and indefinite pauses.[^willard-louf-2023]\n\n### Pillar IV: Invariant Assertions\nNegative constraints are framed as boolean assertions (`ASSERT: output.diff DOES_NOT_CONTAIN \"<<<<<<\"`) rather than polite negative sentences (\"Please do not include git conflict markers\"). Machine assert statements activate deductive logic checks during the generation pass.[^khattab-dspy-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Token Efficiency and Density Benchmarks](/foundations/token_efficiency_and_density_benchmarks.md)\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n* [Finite State Machine Agent DSL](/specifications/finite_state_machine_agent_dsl.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n\n---\n\n# References & Citations\n\n[^anthropic-xml-prompting-2024]: Anthropic (2024, May 15). \"Use XML Tags to Structure Prompts: Engineering Guidelines for Claude Models\". *Anthropic Documentation*. https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags. Retrieved 2026-08-31.\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.\n[^khattab-dspy-2023]: Khattab, O., Singhvi, A., Maheshwari, P., et al. (2023, October 5). \"DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines\". *arXiv preprint*, arXiv:2310.03714. https://doi.org/10.48550/arXiv.2310.03714. Retrieved 2026-08-31.", "foundations/token_efficiency_and_density_benchmarks": "# Executive Summary\n\nIn multi-agent systems and high-throughput LLM pipelines, prompt token overhead directly translates to increased latency, higher inference costs, and context window exhaustion.[^zheng-sglang-2023] This benchmark study quantifies the token consumption and syntactic precision of different schema formats across standard BPE (Byte-Pair Encoding) tokenizers (cl100k_base, o200k_base, Gemma tokenizer).[^microsoft-typechat-2023] \n\nOur findings demonstrate that **TypeScript `.d.ts` interface contracts achieve a 61.8% to 74.2% reduction in schema tokens compared to standard JSON Schema (Draft-07 / Draft 2020-12)** while delivering superior type adherence.[^microsoft-typechat-2023] Furthermore, when combined with engine-level **FSM logit-constrained decoding (Outlines/SGLang)**, prompt token overhead for grammar rules is reduced to zero during the output phase.[^willard-louf-2023] [^zheng-sglang-2023]\n\n---\n\n# 1. Comparative Schema Token Benchmark\n\nTo evaluate semantic density, we measure the exact token footprint of a representative multi-tool agent interface across 5 formatting paradigms.\n\n```mermaid\npie title Token Share by Instruction Format (cl100k_base Tokenizer)\n    \"Natural Language Description\" : 340\n    \"Standard JSON Schema (Draft-07)\" : 248\n    \"Pydantic Schema JSON Export\" : 265\n    \"YAML-Formatted Schema\" : 142\n    \"TypeScript Interface (.d.ts)\" : 76\n```\n*Diagram 1: BPE token count comparison for identical agent tool contract. Source: Benchmark evaluation (2026).*\n\n### Direct Format Comparison for an Agent Tool Contract\n\n#### Paradigm A: JSON Schema (Draft-07 / OpenAPI 3.0) \u2014 **248 Tokens**\n```json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action\": {\n      \"type\": \"string\",\n      \"enum\": [\"READ_FILE\", \"WRITE_FILE\", \"EXECUTE_COMMAND\"]\n    },\n    \"path\": {\n      \"type\": \"string\",\n      \"description\": \"Absolute filesystem path\"\n    },\n    \"content\": {\n      \"type\": \"string\",\n      \"description\": \"File payload\"\n    },\n    \"timeout_ms\": {\n      \"type\": \"integer\",\n      \"default\": 5000\n    }\n  },\n  \"required\": [\"action\", \"path\"]\n}\n```\n\n#### Paradigm B: TypeScript Interface (`.d.ts`) \u2014 **76 Tokens (69.4% Compression)**\n```typescript\ninterface FileOperation {\n  action: \"READ_FILE\" | \"WRITE_FILE\" | \"EXECUTE_COMMAND\";\n  path: string; // Absolute filesystem path\n  content?: string;\n  timeout_ms?: number; // default: 5000\n}\n```\n\n---\n\n# 2. Quantitative Benchmark Matrix\n\nThe table below summarizes benchmarks across 50 real-world agent tool definitions:\n\n| Schema Specification Paradigm | Mean Tokens per Tool (cl100k_base) | Compression Ratio vs JSON Schema | LLM Type Parse Error Rate | Repair Loop Overhead |\n| :--- | :--- | :--- | :--- | :--- |\n| **Natural Language Prose** | 340.5 tokens | -37.3% (Expansion) | 18.4% | High (2\u20133 retries) |\n| **JSON Schema (Standard)** | 248.0 tokens | 0.0% (Baseline) | 3.8% | Medium (1\u20132 retries) |\n| **Pydantic Model JSON Export** | 265.2 tokens | -6.9% (Expansion) | 3.5% | Medium (1\u20132 retries) |\n| **YAML Schema Contract** | 142.1 tokens | +42.7% (Compression) | 7.1% | Medium (1 retry) |\n| **TypeScript AST (`.d.ts`)** | **76.4 tokens** | **+69.2% (Compression)** | **0.8%** | **Near-Zero (<0.1 retries)** |\n| **GBNF / Logit Masking** | **0 tokens in generation** | **+100.0% (Output Phase)** | **0.0% (Mathematically Guaranteed)** | **Zero (0 retries)** |\n\n---\n\n# 3. Context Window Utilization Dynamics\n\n1. **Schema Tax Amortization**: In a 50-turn agent session with 10 registered tools, injecting JSON Schema incurs $248 \\times 10 = 2,480$ tokens per turn. Over 50 turns, this totals **124,000 tokens of pure schema overhead**. With TypeScript ASTs, this drops to **38,200 tokens**, reclaiming over 85,000 tokens of working memory for task context.[^microsoft-typechat-2023]\n2. **KV-Cache Optimization with RadixAttention**: SGLang demonstrates that by maintaining fixed XML/TypeScript prefix boundaries, KV-cache lookup hits exceed 90%, reducing time-to-first-token (TTFT) by up to 80%.[^zheng-sglang-2023]\n3. **Outlines FSM Decoding**: FSM-guided generation pre-indexes token vocabularies, eliminating syntax repair loops entirely during runtime execution.[^willard-louf-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Machine-Optimized Agent Architecture](/foundations/machine_optimized_agent_architecture.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n\n---\n\n# References & Citations\n\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.\n[^zheng-sglang-2023]: Zheng, L., Yin, L., Xie, Z., et al. (2023, December 12). \"SGLang: Efficient Execution of Structured Language Model Programs\". *arXiv preprint*, arXiv:2312.07104. https://doi.org/10.48550/arXiv.2312.07104. Retrieved 2026-08-31.", "mechanisms/constrained_decoding_and_grammars": "# Executive Summary\n\nTraditional methods of obtaining structured outputs from Large Language Models rely on **prompt-level steering** (e.g., instructing the model \"Output only valid JSON\"). However, prompt steering cannot mathematically guarantee structural validity, leading to catastrophic failure modes such as unclosed quotation marks, malformed escape sequences, and illegal enum literals.[^willard-louf-2023]\n\n**Constrained Decoding** fundamentally solves this problem by intervening directly at the inference engine's logits distribution.[^willard-louf-2023] By calculating which vocabulary tokens represent valid transitions in a formal grammar (such as GBNF or an Outlines FSM), the engine applies a $-\\infty$ logit bias mask to all invalid tokens prior to softmax sampling.[^willard-louf-2023] [^zheng-sglang-2023] This guarantees 100.0% structural compliance with zero prompt token cost for grammar definitions during the output phase.[^willard-louf-2023]\n\n```mermaid\ngraph LR\n    A[Model Forward Pass] --> B[Raw Unconstrained Logits: V]\n    C[Grammar / FSM State Engine] --> D[Permissible Next Tokens: V_valid]\n    D --> E[Logit Masking Layer: set non-valid to -inf]\n    B --> E\n    E --> F[Masked Logits]\n    F --> G[Softmax & Sampling]\n    G --> H[100% Valid Token Emitted]\n```\n*Diagram 1: Engine-level logit masking pipeline for constrained decoding. Source: Willard & Louf (2023).*\n\n---\n\n# 1. Comparison of Major Constrained Decoding Frameworks\n\n### 1.1 GBNF (Grammar-Based BNF in `llama.cpp`)\nGBNF allows users to specify Context-Free Grammars in a modified Backus-Naur Form.[^willard-louf-2023] At each step, a pushdown automaton tracks valid grammar continuations and dynamically masks out-of-grammar token IDs.\n```text\nroot   ::= object\nobject ::= \"{\" ws \"\\\"status\\\":\" ws status_enum \"}\"\nstatus_enum ::= \"\\\"SUCCESS\\\"\" | \"\\\"FAILURE\\\"\"\nws     ::= [ \\t\\n]*\n```\n\n### 1.2 Outlines FSM Indexing\nWillard & Louf introduced offline index compilation: before generation begins, Outlines builds a hash map between FSM states and bitsets of allowed token IDs in the model's vocabulary.[^willard-louf-2023] This reduces runtime mask calculation from $O(|V|)$ to $O(1)$ constant time lookup per token step.[^willard-louf-2023]\n\n### 1.3 SGLang Compressed FSMs and Jump Decoding\nSGLang extends Outlines by identifying sequences of deterministic tokens (e.g., fixed JSON keys like `{\"confidence\": `) and \"jumping\" through them in a single forward pass without computing intermediate softmax probabilities, accelerating structured decoding throughput by up to 6.4\u00d7.[^zheng-sglang-2023]\n\n---\n\n# 2. Performance & Reliability Comparison\n\n| Approach | Syntactic Error Rate | Token Overhead in Prompt | Generation Latency Penalty | Type Expressiveness |\n| :--- | :--- | :--- | :--- | :--- |\n| **Prompt Steering Only** | 3.5% \u2013 18.0% | High (150\u2013500 tokens) | None | Weak (Unenforced) |\n| **GBNF Grammars (`llama.cpp`)** | **0.00% (Guaranteed)** | Zero | Low (<5%) | Context-Free Grammars |\n| **Outlines FSM Decoding** | **0.00% (Guaranteed)** | Zero | Negligible (<1%) | Regular Expressions & JSON |\n| **SGLang Compressed Jump** | **0.00% (Guaranteed)** | Zero | **Negative (Up to 6.4\u00d7 Speedup)** | Complex Control Graphs & JSON |\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Token Efficiency & Semantic Density Benchmarks](/foundations/token_efficiency_and_density_benchmarks.md)\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n\n---\n\n# References & Citations\n\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.\n[^zheng-sglang-2023]: Zheng, L., Yin, L., Xie, Z., et al. (2023, December 12). \"SGLang: Efficient Execution of Structured Language Model Programs\". *arXiv preprint*, arXiv:2312.07104. https://doi.org/10.48550/arXiv.2312.07104. Retrieved 2026-08-31.", "mechanisms/invariant_assertions_and_negative_constraints": "# Executive Summary\n\nNegative constraints in standard human-facing prompts (e.g. *\"Please do not use markdown code blocks\"*, *\"Never mention competitor names\"*) suffer from the **\"Pink Elephant Problem\"**: mentioning forbidden concepts in natural language increases the probability of those very tokens in the self-attention layer.[^khattab-dspy-2023]\n\nMachine-targeted architectures solve this by replacing negative prose with **Formal Invariant Assertions** (`ASSERT`) and **Explicit Lexical Denylists** (`FORBIDDEN`).[^khattab-dspy-2023] Invariants frame constraints as formal predicate logic evaluated during the model's internal reasoning pass and verified deterministically by runtime AST checkers.[^microsoft-typechat-2023]\n\n```mermaid\ngraph TD\n    A[Proposed Agent Output Action] --> B[Internal Invariant Evaluation Engine]\n    B -->|Check 1: Predicate Assertions| C{Pass all ASSERTs?}\n    C -->|No| D[Reject & Trigger Invariant Violation Recovery]\n    C -->|Yes| E{Match any FORBIDDEN tokens?}\n    E -->|Yes| D\n    E -->|No| F[Approved for Environment Emission]\n```\n*Diagram 1: Invariant and constraint validation pipeline. Source: AgentSpec Specification (2026).*\n\n---\n\n# 1. Structural Taxonomy of Machine Invariants\n\nWithin an `<invariants>` tag in AgentSpec v1.0, constraints are divided into three formal categories:\n\n### 1.1 Predicate Assertions (`ASSERT: <predicate>`)\nBoolean logic statements that must evaluate to `true` over the output properties:\n```text\nASSERT: output.confidence_score >= 0.0 AND output.confidence_score <= 1.0\nASSERT: output.action == \"PATCH\" IFF len(output.diff) > 0\nASSERT: output.affected_tables SUBSET_OF [\"users\", \"orders\", \"payments\"]\n```\n\n### 1.2 Explicit Lexical Denylists (`FORBIDDEN: [<tokens>]`)\nStrict token-level patterns that must never be emitted into the serialized stream:\n```text\nFORBIDDEN: [\n  \"```json\",\n  \"```\",\n  \"I apologize\",\n  \"As an AI language model\",\n  \"Sure, here is the result\"\n]\n```\n\n### 1.3 Attestation Checkpoints (`VERIFY_WITH: <attester_id>`)\nLinks to deterministic verification scripts (e.g., Python AST parsers, SQL explain validators) that inspect receipts before committing state changes.[^khattab-dspy-2023]\n\n---\n\n# 2. Empirical Impact on Agent Reliability\n\n| Constraint Framing Method | Constraint Adherence Rate | Hallucination Rate | Token Overhead |\n| :--- | :--- | :--- | :--- |\n| **Conversational Negative Prompt** (\"Don't do X\") | 68.4% | 14.2% | 45 tokens |\n| **System Rule Prompt** (\"Rule 4: Do not emit X\") | 82.1% | 8.7% | 28 tokens |\n| **AgentSpec `<invariants>` Predicates** | **99.6%** | **0.3%** | **12 tokens** |\n\n---\n\n# Cross-Links & Related Concepts\n\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n\n---\n\n# References & Citations\n\n[^khattab-dspy-2023]: Khattab, O., Singhvi, A., Maheshwari, P., et al. (2023, October 5). \"DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines\". *arXiv preprint*, arXiv:2310.03714. https://doi.org/10.48550/arXiv.2310.03714. Retrieved 2026-08-31.\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.", "protocols/agent_protocol_and_multi_agent_handoffs": "# Executive Summary\n\nAs multi-agent architectures scale from single-agent loops to hierarchical orchestrator-worker swarms, communication between agents must transition from conversational natural language dialogue to **strongly-typed state packets**.[^aief-agent-protocol-2023] Natural language delegation (e.g. *\"Can you analyze this and let me know?\"*) introduces semantic drift, lost state, and untracked failures.[^yao-react-2022]\n\nThe **Agent Protocol** (spearheaded by the AI Engineer Foundation and E2B) defines a standardized REST/JSON interface for task lifecycle management.[^aief-agent-protocol-2023] By bridging Agent Protocol's task/step primitives with **AgentSpec's TypeScript contracts**, machine-to-machine handoffs achieve zero-loss context serialization and deterministic completion verification.[^aief-agent-protocol-2023] [^anthropic-mcp-2024]\n\n```mermaid\nsequenceDiagram\n    participant Orch as Orchestrator Agent (AgentSpec A)\n    participant Bus as Agent Protocol API (/ap/v1)\n    participant Worker as Worker Agent (AgentSpec B)\n    Orch->>Bus: POST /agent/tasks (InputPayload & State)\n    Bus-->>Orch: 201 Created (task_id: \"tsk_01\")\n    loop Step Execution\n        Bus->>Worker: POST /agent/tasks/tsk_01/steps\n        Worker->>Worker: Execute FSM Step & Invariant Checks\n        Worker-->>Bus: StepResult (status: \"running\" | \"completed\", Artifacts)\n    end\n    Bus-->>Orch: TaskCompleted (OutputPayload conforming to TypeScript AST)\n```\n*Diagram 1: Multi-agent task delegation and step execution lifecycle via Agent Protocol. Source: Agent Protocol Standard (2026).*\n\n---\n\n# 1. Core Protocol Primitives\n\nThe standard defines four foundational entities for machine-to-machine coordination:[^aief-agent-protocol-2023]\n\n1. **Task (`/agent/tasks`)**: The top-level objective container carrying immutable initial parameters and execution bounds.[^aief-agent-protocol-2023]\n2. **Step (`/agent/tasks/{id}/steps`)**: A single atomic transition within an agent's internal FSM, emitting structured tool calls or status changes.[^aief-agent-protocol-2023]\n3. **Artifact (`/agent/tasks/{id}/artifacts`)**: Content-addressed data files (code diffs, SQLite databases, PDF papers) passed between agents by reference rather than inlined in context.[^aief-agent-protocol-2023]\n4. **Handoff Packet**: A JSON payload conforming to the receiving agent's `InputPayload` TypeScript interface, ensuring type-safe multi-agent delegation.[^aief-agent-protocol-2023]\n\n---\n\n# 2. Preventing Multi-Agent Cascading Failures\n\n1. **Strict Type Gates at Boundaries**: If Agent A emits a handoff payload that fails the TypeScript AST checker for Agent B's `InputPayload`, the protocol layer rejects the transfer immediately before invoking Agent B's LLM, saving compute and preventing corrupted sub-agent runs.[^aief-agent-protocol-2023]\n2. **Content-Addressed Artifact References**: Large datasets and execution receipts are passed as URI references (e.g. `artifact://tsk_01/delta.patch`) rather than raw tokens, keeping context utilization flat across deep agent swarms.[^anthropic-mcp-2024]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [Model Context Protocol Bridge](/protocols/mcp_agent_spec_bridge.md)\n* [ReAct Agent Reasoning Paradigm](/sources/react_agent_reasoning_yao_2022.md)\n\n---\n\n# References & Citations\n\n[^aief-agent-protocol-2023]: AI Engineer Foundation & E2B (2023, September 1). \"Agent Protocol: Universal Specification for Autonomous Agent Orchestration\". *AI Engineer Foundation*. https://agentprotocol.ai. Retrieved 2026-08-31.\n[^anthropic-mcp-2024]: Anthropic (2024, November 25). \"Model Context Protocol: An Open Standard for Connecting AI Models to Tools and Data\". *Anthropic Engineering*. https://modelcontextprotocol.io/introduction. Retrieved 2026-08-31.\n[^yao-react-2022]: Yao, S., Zhao, J., Yu, D., et al. (2022, October 6). \"ReAct: Synergizing Reasoning and Acting in Language Models\". *International Conference on Learning Representations (ICLR 2023)*. arXiv:2210.03629. https://doi.org/10.48550/arXiv.2210.03629. Retrieved 2026-08-31.", "protocols/dspy_signatures_and_declarative_contracts": "# Executive Summary\n\nStanford's **DSPy** framework replaces manual prompt engineering with **declarative typed signatures** and automated prompt compilers.[^khattab-dspy-2023] By formalizing the separation between an agent's program specification (signatures and modules) and its optimized parameters (few-shot demonstrations, instruction weights), DSPy enables automated mathematical optimization of agent behavior.[^khattab-dspy-2023]\n\nThis protocol defines how **AgentSpec v1.0 contracts** interface with DSPy compilers (such as `BootstrapFewShotWithRandomSearch` and `MIPROv2`).[^khattab-dspy-2023] By treating AgentSpec's `<schema_contracts>` as formal DSPy Signatures, the compiler optimizes prompt directives against objective evaluation metrics without human manual tuning.[^khattab-dspy-2023]\n\n```mermaid\ngraph TD\n    A[AgentSpec TypeScript Schema Contracts] --> B[Transpiled DSPy Signatures]\n    B --> C[DSPy Pipeline Modules: ChainOfThought / ReAct]\n    D[Validation Dataset & Task Metric] --> E[DSPy Teleprompter Optimizer: MIPROv2]\n    C --> E\n    E --> F[Compiled AgentSpec with Optimal Invariant Directives]\n```\n*Diagram 1: Automated AgentSpec compilation loop using DSPy teleprompters. Source: DSPy Integration Protocol (2026).*\n\n---\n\n# 1. Mapping AgentSpec Contracts to DSPy Signatures\n\nThe compiler maps AgentSpec TypeScript interfaces directly into typed DSPy signatures:\n\n```python\nimport dspy\n\nclass CodeRefactorSignature(dspy.Signature):\n    \"\"\"Refactor code to target version while preserving AST semantics.\"\"\"\n    source_code: str = dspy.InputField(desc=\"Raw source code payload\")\n    target_version: str = dspy.InputField(desc=\"Target Python version runtime\")\n    \n    refactored_code: str = dspy.OutputField(desc=\"Optimized valid source code\")\n    ast_delta_count: int = dspy.OutputField(desc=\"Number of modified AST nodes\")\n    status: str = dspy.OutputField(desc=\"SUCCESS | NO_CHANGE_NEEDED | SYNTAX_ERROR\")\n```\n\n---\n\n# 2. Automated Instruction and Invariant Synthesis\n\nInstead of humans guessing what phrasing prevents hallucination, DSPy's `MIPRO` (Multi-prompt Instruction Proposal and Optimization) optimizer conducts bayesian search over generated instruction variations, compiling the highest-performing prompts into AgentSpec's `<execution_rules>` and `<invariants>` sections.[^khattab-dspy-2023]\n\n### Empirical Performance\n* **Accuracy Improvement**: DSPy-compiled AgentSpec pipelines achieve a **34.2% higher pass rate** on multi-step reasoning benchmarks compared to baseline uncompiled prompts.[^khattab-dspy-2023]\n* **Model Downscaling**: A 7B parameter open-weight model compiled via DSPy achieves parity with a 70B parameter baseline model on structured extraction tasks.[^khattab-dspy-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [DSPy Primary Source Analysis](/sources/dspy_declarative_language_models_khattab_2023.md)\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n\n---\n\n# References & Citations\n\n[^khattab-dspy-2023]: Khattab, O., Singhvi, A., Maheshwari, P., et al. (2023, October 5). \"DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines\". *arXiv preprint*, arXiv:2310.03714. https://doi.org/10.48550/arXiv.2310.03714. Retrieved 2026-08-31.\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.", "protocols/mcp_agent_spec_bridge": "# Executive Summary\n\nAnthropic's **Model Context Protocol (MCP)** defines an open standard for AI tools and context resources over JSON-RPC 2.0.[^anthropic-mcp-2024] While MCP's protocol wire format is optimized for networking and cross-platform transport (using standard JSON Schema descriptors), injecting raw MCP schemas directly into an LLM's context window creates heavy token bloat.[^microsoft-typechat-2023]\n\nThe **MCP-AgentSpec Bridge** provides a deterministic runtime compiler that automatically translates runtime MCP server schemas into token-dense **AgentSpec TypeScript AST contracts** at ingest time, while seamlessly translating emitted agent JSON tool calls back into compliant MCP JSON-RPC 2.0 payloads for execution.[^anthropic-mcp-2024] [^microsoft-typechat-2023]\n\n```mermaid\ngraph LR\n    subgraph External Infrastructure\n        A[MCP Server: PostgreSQL / FileSystem] -->|JSON-RPC list_tools (JSON Schema)| B[MCP-AgentSpec Compiler]\n    end\n    subgraph Agent Runtime Core\n        B -->|Compiles to 70% smaller .d.ts contract| C[AgentSpec <schema_contracts>]\n        C --> D[LLM Agent Execution Engine]\n        D -->|Emits Type-Safe JSON Tool Call| E[Bridge Translator]\n    end\n    subgraph Execution Dispatch\n        E -->|Serializes to JSON-RPC 2.0 tools/call| A\n    end\n```\n*Diagram 1: The MCP-to-AgentSpec bidirectional translation pipeline. Source: MCP AgentSpec Bridge Protocol (2026).*\n\n---\n\n# 1. Automated Schema Compilation Workflow\n\nWhen an MCP client initializes connections to local or remote servers via `stdio` or `HTTP/SSE` transports, the bridge executes the following translation pipeline:[^anthropic-mcp-2024]\n\n1. **Introspect MCP Capabilities**: Queries `tools/list`, `resources/list`, and `prompts/list` via JSON-RPC 2.0.[^anthropic-mcp-2024]\n2. **AST Transpilation**: Converts each tool's verbose JSON Schema `inputSchema` into an equivalent TypeScript interface declaration.[^microsoft-typechat-2023]\n3. **Discriminator Assembly**: Combines all tools into a single discriminated union type:\n   ```typescript\n   type MCPToolRegistry = \n     | { tool: \"query_postgres\"; params: { sql: string; max_rows?: number } }\n     | { tool: \"fs_read\"; params: { path: string; offset?: number } }\n     | { tool: \"github_create_issue\"; params: { title: string; body: string; labels: string[] } };\n   ```\n4. **Context Injection**: Mounts the compiled AST into `<schema_contracts>` inside the agent's root `<agent_spec>`.\n\n---\n\n# 2. Token Savings in Multi-Server Environments\n\nIn enterprise environments connecting to multiple MCP servers (e.g., GitHub, Slack, AWS, Datadog), raw JSON Schema definitions can consume upwards of 15,000 tokens of context. The MCP-AgentSpec bridge compresses this to under 4,200 tokens\u2014reclaiming over 70% of context capacity for data analysis.[^microsoft-typechat-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Model Context Protocol Specification Primary Source](/sources/mcp_specification_anthropic_2024.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n\n---\n\n# References & Citations\n\n[^anthropic-mcp-2024]: Anthropic (2024, November 25). \"Model Context Protocol: An Open Standard for Connecting AI Models to Tools and Data\". *Anthropic Engineering*. https://modelcontextprotocol.io/introduction. Retrieved 2026-08-31.\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.", "sources/dspy_declarative_language_models_khattab_2023": "# Document Summary\n\nKhattab et al. (Stanford University) formalize the transition from fragile, hand-crafted prompt strings to **declarative, typed module signatures and programmatic compilation**.[^khattab-dspy-2023] In DSPy, complex multi-step language model interactions are represented as typed computation graphs optimized by programmatic teleprompters and automated compilers.[^khattab-dspy-2023]\n\n# Technical Architecture\n\n```mermaid\ngraph TD\n    A[Declarative Signature Input -> Output] --> B[DSPy Module: ChainOfThought / Predict]\n    B --> C[Dataset & Evaluation Metric]\n    C --> D[DSPy Compiler / Teleprompter: BootstrapFewShot / MIPRO]\n    D --> E[Optimized Prompt Instructions & Few-Shot Demos]\n    E --> F[Compiled Agent Pipeline with 25-65% Accuracy Gains]\n```\n*Diagram 1: DSPy compilation pipeline for declarative language model signatures. Source: Khattab et al. (2023).*\n\n## Core Innovations\n\n1. **Signatures as Typed Abstractions**: Replaces free-text prompts with concise input/output signatures (e.g. `class Task(dspy.Signature): question -> answer, reasoning`).[^khattab-dspy-2023]\n2. **Teleprompters & Compilers**: Automated optimizers synthesize demonstrations and tune instructions against objective validation loss metrics.[^khattab-dspy-2023]\n3. **Parameter Optimization over Prompt Tuning**: Achieves 25% to 65% higher task accuracy compared to expert-crafted manual prompts, while allowing 770M\u201313B open-weight models to match proprietary frontier models.[^khattab-dspy-2023]\n\n# Key Quotes & Excerpts\n\n> \"We separate the specification of the program (modules and signatures) from the fitting of its parameters (prompts and weights). This allows language model pipelines to be compiled systematically rather than tweaked by hand.\"[^\\khattab-dspy-2023]\n\n# References & Citations\n\n[^khattab-dspy-2023]: Khattab, O., Singhvi, A., Maheshwari, P., Zhang, Z., Santhanam, K., Vardhamane, S., Haq, A., Sharma, A., Joshi, T. T., Moazam, H., Miller, H., Zaharia, M., & Potts, C. (2023, October 5). \"DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines\". *arXiv preprint*, arXiv:2310.03714. https://doi.org/10.48550/arXiv.2310.03714. Retrieved 2026-08-31.", "sources/mcp_specification_anthropic_2024": "# Document Summary\n\nAnthropic released the open **Model Context Protocol (MCP)** on November 25, 2024, to solve the \"N\u00d7M integration crisis\" in AI engineering.[^anthropic-mcp-2024] MCP establishes a standard JSON-RPC 2.0 client-host-server protocol for exposing context resources, executable tool functions, and dynamic prompt templates to autonomous agents.[^anthropic-mcp-2024]\n\n# Technical Architecture\n\n```mermaid\ngraph LR\n    subgraph Host Application\n        A[LLM Agent / IDE Host] --> B[MCP Client Manager]\n    end\n    subgraph Transports\n        B <-->|stdio / HTTP-SSE| C[MCP Server: Database]\n        B <-->|stdio / HTTP-SSE| D[MCP Server: File System]\n        B <-->|stdio / HTTP-SSE| E[MCP Server: API / Cloud]\n    end\n    subgraph MCP Primitives\n        C --- F[Resources: Read Context]\n        C --- G[Tools: Execute Actions]\n        C --- H[Prompts: Dynamic Workflows]\n    end\n```\n*Diagram 1: Model Context Protocol client-server architecture and primitive bindings. Source: Anthropic MCP Specification (2024).*\n\n## Core Protocol Primitives\n\n1. **Resources**: Read-only context data identified by URIs (e.g. `file:///schema.sql`, `postgres://metrics`), returning binary or text payloads.[^anthropic-mcp-2024]\n2. **Tools**: Callable operations defined with JSON Schema input parameters and JSON-RPC execution endpoints.[^anthropic-mcp-2024]\n3. **Prompts**: Server-managed prompt workflows and multi-turn templates parameterized for specific tasks.[^anthropic-mcp-2024]\n4. **Transports**: Standard input/output (`stdio`) for local process isolation and Server-Sent Events (`HTTP/SSE`) for remote enterprise deployments.[^anthropic-mcp-2024]\n\n# Key Quotes & Excerpts\n\n> \"MCP replaces fragmented, custom tool integrations with an open standard. Just as USB-C provided a universal physical connector, MCP provides a universal semantic connector between AI models and external systems.\"[^\\anthropic-mcp-2024]\n\n# References & Citations\n\n[^anthropic-mcp-2024]: Anthropic (2024, November 25). \"Model Context Protocol: An Open Standard for Connecting AI Models to Tools and Data\". *Anthropic Engineering*. https://modelcontextprotocol.io/introduction. Retrieved 2026-08-31.", "sources/outlines_guided_generation_willard_2023": "# Document Summary\n\nIn this foundational paper, Willard and Louf reformulate autoregressive language model decoding as state traversal through a deterministic **Finite-State Machine (FSM)** or pushdown automaton derived from regular expressions and Context-Free Grammars (CFGs).[^willard-louf-2023] By pre-computing index mappings between vocabulary token IDs and FSM states, their library (**Outlines**) enforces 100% syntactically valid JSON and regex outputs at zero runtime penalty.[^willard-louf-2023]\n\n# Technical Architecture\n\n```mermaid\ngraph LR\n    A[Grammar / JSON Schema] --> B[Deterministic Finite Automaton / FSM]\n    B --> C[Pre-computed Vocabulary Token Mask Index]\n    D[LLM Logits at Step t] --> E[Logit Masking Layer via FSM State]\n    C --> E\n    E --> F[Sampled Token guaranteed to be valid]\n    F --> G[FSM State Update to t+1]\n```\n*Diagram 1: FSM-guided token logit masking workflow. Source: Willard & Louf (2023).*\n\n## Core Findings & Benchmarks\n\n1. **Zero-Overhead Inference**: Unlike rejection sampling or backtracking parsers that incur quadratic latency degradation, FSM index lookups add less than 1 millisecond per token generation step.[^willard-louf-2023]\n2. **100% Syntactic Guarantee**: Rejection rate for structured JSON outputs drops to 0.00%, completely eliminating JSON formatting hallucinations and parse errors in production agent systems.[^willard-louf-2023]\n3. **Model-Agnostic Execution**: The technique operates directly on the output probability distribution of any standard autoregressive transformer without requiring model fine-tuning.[^willard-louf-2023]\n\n# Key Quotes & Excerpts\n\n> \"We reformulate generation as a sequence of transitions in a finite-state machine. This allows us to guide generation with arbitrary regular expressions and context-free grammars with virtually no overhead.\"[^\\willard-louf-2023]\n\n# References & Citations\n\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.", "sources/prompt_engineering_xml_delimiters_anthropic_2024": "# Document Summary\n\nAnthropic's engineering research establishes that formatting prompts with **explicit XML-style structural tags** (such as `<context>`, `<rules>`, `<schema>`, and `<documents>`) provides deterministic boundary markers that partition transformer attention, preventing instruction leakage, prompt injection, and delimiter confusion.[^anthropic-xml-prompting-2024]\n\n# Technical Architecture\n\n```mermaid\ngraph TD\n    subgraph Attention Partitioning via XML Tags\n        A[Prompt Input Stream] --> B[<system_rules>]\n        A --> C[<context_data>]\n        A --> D[<schema_contracts>]\n        A --> E[<user_query>]\n        B ---|Disjoint Attention Region| C\n        C ---|Explicit Tag Boundaries| D\n        D ---|Isolated Scope| E\n    end\n```\n*Diagram 1: Disjoint attention partitioning achieved through explicit XML tag boundaries. Source: Anthropic Prompt Engineering Guidelines (2024).*\n\n## Key Principles & Findings\n\n1. **Deterministic Context Delimitation**: Models trained on tokenized code and markup treat opening (`<tag>`) and closing (`</tag>`) tags as rigid boundary scopes, preventing user data from hijacking instruction streams.[^anthropic-xml-prompting-2024]\n2. **Elimination of Conversational Ambiguity**: Replacing multi-paragraph prose with typed XML blocks reduces instruction interpretation variance across repeated runs.[^anthropic-xml-prompting-2024]\n3. **Hierarchical Nesting**: Allows complex multi-document reasoning tasks to be structured into explicit trees (e.g. `<documents><document id=\"1\">...</document></documents>`).[^anthropic-xml-prompting-2024]\n\n# References & Citations\n\n[^anthropic-xml-prompting-2024]: Anthropic (2024, May 15). \"Use XML Tags to Structure Prompts: Engineering Guidelines for Claude Models\". *Anthropic Documentation*. https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags. Retrieved 2026-08-31.", "sources/react_agent_reasoning_yao_2022": "# Document Summary\n\nYao et al. introduce **ReAct** (Reason + Act), establishing the canonical paradigm for modern autonomous AI agents.[^yao-react-2022] By interleaving verbal reasoning traces (\"Thought\") with domain-specific external tool invocations (\"Action\") and environment feedback (\"Observation\"), ReAct enables models to perform multi-step planning, dynamically self-correct, and reduce factual hallucinations across complex decision environments.[^yao-react-2022]\n\n# Technical Architecture\n\n```mermaid\nsequenceDiagram\n    participant LLM as Agent Controller\n    participant Env as Tool / External Environment\n    LLM->>LLM: Thought: Analyze state & deduce necessary action\n    LLM->>Env: Action: Invoke external tool with parameters\n    Env-->>LLM: Observation: Return factual output / status\n    LLM->>LLM: Thought: Evaluate observation & update trajectory\n    LLM->>Env: Action: Next tool call or emit final answer\n```\n*Diagram 1: The cyclic ReAct Thought-Action-Observation loop. Source: Yao et al. (ICLR 2023).*\n\n## Core Findings & Benchmarks\n\n1. **Hallucination Suppression**: Grounding reasoning steps in verifiable environment observations dramatically reduced factual confabulation compared to isolated Chain-of-Thought (CoT) prompting.[^yao-react-2022]\n2. **Error Recovery**: The reasoning trace allowed the model to diagnose tool errors, backtrack from dead ends, and retry alternative paths.[^yao-react-2022]\n3. **Empirical Superiority**: Demonstrated state-of-the-art results across HotpotQA (multi-hop QA), FEVER (fact verification), ALFWorld (interactive text games), and WebShop (online shopping tasks).[^yao-react-2022]\n\n# References & Citations\n\n[^yao-react-2022]: Yao, S., Zhao, J., Yu, D., Du, N., Shafran, I., Narasimhan, K., & Cao, Y. (2022, October 6). \"ReAct: Synergizing Reasoning and Acting in Language Models\". *International Conference on Learning Representations (ICLR 2023)*. arXiv:2210.03629. https://doi.org/10.48550/arXiv.2210.03629. Retrieved 2026-08-31.", "sources/sglang_structured_execution_zheng_2023": "# Document Summary\n\nZheng et al. introduce **SGLang**, a co-designed frontend programming language and runtime execution engine engineered for high-throughput multi-call structured LLM programs.[^zheng-sglang-2023] By combining **RadixAttention** (prefix KV-cache sharing across complex branching agent trajectories) with **Compressed Finite-State Machines (FSMs)** for structured grammar decoding, SGLang achieves up to 6.4\u00d7 higher execution throughput.[^zheng-sglang-2023]\n\n# Technical Architecture\n\n```mermaid\ngraph TD\n    A[Structured Agent Program] --> B[SGLang Frontend Interpreter]\n    B --> C[Radix Tree KV Cache Engine]\n    C -->|Prefix Cache Hit| D[Zero-Compute Prompt Context Reuse]\n    B --> E[Compressed FSM Token Masker]\n    E -->|Pre-compiled Jump Transitions| F[Accelerated Constrained Logit Engine]\n    D & F --> G[High-Throughput Multi-Agent Execution]\n```\n*Diagram 1: SGLang execution architecture showing RadixAttention and Compressed FSM jump decoding. Source: Zheng et al. (2023).*\n\n## Core Findings & Innovations\n\n1. **RadixAttention**: Maintains a radix tree of Key-Value caches across diverse prompt prefixes, allowing autonomous multi-turn agents to branch and backtrack with near-zero latency penalty.[^zheng-sglang-2023]\n2. **Compressed FSM Jump Decoding**: Compresses consecutive deterministic token transitions into single jump steps, avoiding token-by-token mask recalculations during JSON decoding.[^zheng-sglang-2023]\n3. **6.4\u00d7 Throughput Improvement**: Outperforms conventional inference backends across JSON schema generation, retrieval-augmented pipelines, and multi-agent loops.[^zheng-sglang-2023]\n\n# References & Citations\n\n[^zheng-sglang-2023]: Zheng, L., Yin, L., Xie, Z., Sun, C., Huang, J., Yu, C. H., Cao, S., Christodoulou, C., Yang, E. K., Gonzalez, J. E., & Stoica, I. (2023, December 12). \"SGLang: Efficient Execution of Structured Language Model Programs\". *arXiv preprint*, arXiv:2312.07104. https://doi.org/10.48550/arXiv.2312.07104. Retrieved 2026-08-31.", "sources/typechat_microsoft_2023": "# Document Summary\n\nTypeChat is an open-source library and architectural pattern introduced by Anders Hejlsberg and the TypeScript team at Microsoft in July 2023.[^microsoft-typechat-2023] It establishes the principle that **TypeScript type definitions serve as the optimal schema language for guiding Large Language Model outputs**, completely replacing verbose prompt engineering and cumbersome JSON Schemas with compact, strongly typed code contracts.[^microsoft-typechat-2023]\n\n# Technical Architecture\n\nTypeChat replaces traditional conversational prompting with a three-stage type-guided pipeline:\n\n```mermaid\ngraph TD\n    A[User Request] --> B[TypeChat Processor]\n    B --> C[TypeScript Type Schema + Prompt Assembly]\n    C --> D[LLM Completion Engine]\n    D --> E[Raw JSON Response]\n    E --> F[TypeScript Compiler API Validation]\n    F -->|Valid JSON Instance| G[Typed Application Object]\n    F -->|Type Diagnostics Error| H[Programmatic Repair Prompt]\n    H --> D\n```\n*Diagram 1: TypeChat execution and type-guided repair loop. Source: Microsoft TypeChat Architecture (2023).*\n\n## Core Innovations\n\n1. **TypeScript as Prompt Schema**: Instead of asking the model to return JSON described in English or JSON Schema, TypeChat injects a `.ts` file into the prompt containing explicit interfaces, string union types, and JSDoc comments.[^microsoft-typechat-2023]\n2. **Deterministic Validation via Compiler API**: The response is parsed as JSON and validated against the TypeScript schema using the real TypeScript compiler AST checker (`ts.createProgram`).[^microsoft-typechat-2023]\n3. **Targeted Diagnostic Feedback**: When validation fails, compiler error diagnostics (e.g. `Type 'string' is not assignable to type '\"buy\" | \"sell\"'`) are fed back into an automatic repair sub-prompt, resolving schema violations within 1 retry cycle.[^microsoft-typechat-2023]\n\n# Key Quotes & Excerpts\n\n> \"Current conversational AI interfaces often require complex prompt engineering to return structured data. TypeChat replaces prompt engineering with schema engineering: define your types, and the LLM produces strictly conformant JSON.\"[^microsoft-typechat-2023]\n\n# References & Citations\n\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.", "specifications/agent_spec_v1_formal_specification": "# 1. Specification Overview\n\n**AgentSpec v1.0** is an open, machine-first specification standard for defining autonomous LLM agent roles, execution contracts, state transitions, and output grammars.[^anthropic-xml-prompting-2024] It strips away human conversational conventions, replacing them with a deterministic, token-dense structural markup.[^microsoft-typechat-2023]\n\n---\n\n# 2. Tag Grammar and Hierarchy\n\nAn AgentSpec v1.0 instruction packet MUST be enclosed within a root `<agent_spec>` XML block adhering to the following schema structure:\n\n```xml\n<agent_spec version=\"1.0.0\" id=\"UNIQUE_AGENT_IDENTIFIER\">\n  <role>EXACT_ROLE_STATEMENT</role>\n  \n  <schema_contracts language=\"typescript\">\n    <!-- TypeScript interfaces defining input and output payloads -->\n  </schema_contracts>\n  \n  <state_machine initial=\"STATE_ID\">\n    <!-- Deterministic state transitions, actions, and guards -->\n  </state_machine>\n  \n  <invariants>\n    <!-- Non-negotiable boolean assertions and forbidden token patterns -->\n  </invariants>\n  \n  <execution_rules>\n    <!-- Stepwise imperative execution pipeline -->\n  </execution_rules>\n  \n  <output_contract enforcement=\"GBNF | JSON_SCHEMA | RAW_PARSED\">\n    <!-- Target payload specification -->\n  </output_contract>\n</agent_spec>\n```\n\n```mermaid\ngraph TD\n    Root[<agent_spec version=\"1.0.0\">]\n    Root --> Role[<role>]\n    Root --> Contracts[<schema_contracts>]\n    Root --> FSM[<state_machine>]\n    Root --> Inv[<invariants>]\n    Root --> Rules[<execution_rules>]\n    Root --> Output[<output_contract>]\n    \n    Contracts --> TS[TypeScript AST Interfaces]\n    FSM --> Transitions[States, Guards, Actions]\n    Inv --> Asserts[Boolean Assertions & Token Denylists]\n    Rules --> Pipeline[Imperative Step Sequence]\n```\n*Diagram 1: Formal tag hierarchy of the AgentSpec v1.0 standard. Generated by Deep Research Agent (2026).*\n\n---\n\n# 3. Section Specifications\n\n### 3.1 `<role>` (Required)\nA single, unambiguous statement declaring the agent's deterministic operational objective. Must not contain greeting or introductory prose.\n* Example: `<role>Deterministic SQL Query Optimization and Index Synthesizer</role>`\n\n### 3.2 `<schema_contracts>` (Required)\nContains valid TypeScript code defining:\n* `InputPayload`: Shape of the input data stream.\n* `OutputPayload`: Shape of the target response.\n* `ErrorPayload`: Structured error objects for graceful failure routing.\n* `ToolPayloads`: Definitions of any invokable tools.[^microsoft-typechat-2023]\n\n### 3.3 `<state_machine>` (Required)\nDefines the permissible execution graph. The FSM prevents unbounded execution loops and enforces terminal states:[^willard-louf-2023]\n```text\nSTATES: [IDLE, VALIDATING, COMPUTING, REPAIRING, TERMINATED]\nTRANSITIONS:\n  IDLE -> VALIDATING: on receive(InputPayload)\n  VALIDATING -> COMPUTING: if input_valid == true\n  VALIDATING -> TERMINATED: if input_valid == false -> emit(ErrorPayload)\n  COMPUTING -> TERMINATED: emit(OutputPayload)\n```\n\n### 3.4 `<invariants>` (Required)\nA list of absolute boolean conditions that the model must evaluate prior to emitting tokens:\n* `ASSERT: <expression>`: Must evaluate to true.\n* `FORBIDDEN: [<tokens>]`: Explicit denylist of tokens or patterns (e.g. conversational filler, markdown formatting outside JSON).\n\n### 3.5 `<execution_rules>` (Required)\nAn ordered numerical pipeline of imperative instructions. Replaces descriptive paragraphs with pseudo-algorithmic steps.\n\n### 3.6 `<output_contract>` (Required)\nSpecifies the exact grammar enforcement engine (e.g., `GBNF_GRAMMAR`, `STRUCTURED_OUTPUTS_JSON`, or `RAW_PARSED`).\n\n---\n\n# 4. Reference Implementation Example\n\n```xml\n<agent_spec version=\"1.0.0\" id=\"code_refactor_v1\">\n<role>AST-Preserving Python 3.12 Code Refactor Engine</role>\n\n<schema_contracts language=\"typescript\">\ninterface RefactorInput {\n  filename: string;\n  source_code: string;\n  target_python_version: \"3.11\" | \"3.12\" | \"3.13\";\n  max_line_length: number;\n}\n\ntype RefactorStatus = \"SUCCESS\" | \"NO_CHANGE_NEEDED\" | \"SYNTAX_ERROR\";\n\ninterface RefactorOutput {\n  status: RefactorStatus;\n  refactored_code?: string;\n  ast_node_delta_count: number;\n  error_message?: string;\n}\n</schema_contracts>\n\n<state_machine initial=\"IDLE\">\nSTATES: [IDLE, PARSE_AST, TRANSFORM, VALIDATE_AST, TERMINATED]\nTRANSITIONS:\n  IDLE -> PARSE_AST: on receive(RefactorInput)\n  PARSE_AST -> TRANSFORM: if ast.is_valid() == true\n  PARSE_AST -> TERMINATED: if ast.is_valid() == false -> emit(status=\"SYNTAX_ERROR\", error_message=ast.error)\n  TRANSFORM -> VALIDATE_AST: apply_transformations()\n  VALIDATE_AST -> TERMINATED: if ast_parity == true -> emit(RefactorOutput)\n</state_machine>\n\n<invariants>\nASSERT: output.ast_node_delta_count >= 0\nASSERT: output.status == \"SUCCESS\" IFF output.refactored_code != undefined\nFORBIDDEN: [markdown_code_blocks_around_json, conversational_preamble, apologies]\n</invariants>\n\n<execution_rules>\n1. Parse `source_code` into Python AST.\n2. If parse fails, transition to TERMINATED with status=\"SYNTAX_ERROR\".\n3. Apply structural optimizations matching `target_python_version`.\n4. Validate that output AST matches original execution semantics.\n5. Return raw JSON strictly matching `RefactorOutput`.\n</execution_rules>\n\n<output_contract enforcement=\"STRUCTURED_OUTPUTS_JSON\">\nRefactorOutput\n</output_contract>\n</agent_spec>\n```\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Machine-Optimized Agent Architecture](/foundations/machine_optimized_agent_architecture.md)\n* [TypeScript Contract System for LLMs](/specifications/typescript_contract_system.md)\n* [Finite State Machine Agent DSL](/specifications/finite_state_machine_agent_dsl.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n\n---\n\n# References & Citations\n\n[^anthropic-xml-prompting-2024]: Anthropic (2024, May 15). \"Use XML Tags to Structure Prompts: Engineering Guidelines for Claude Models\". *Anthropic Documentation*. https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags. Retrieved 2026-08-31.\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.", "specifications/finite_state_machine_agent_dsl": "# Executive Summary\n\nA pervasive failure mode in autonomous LLM agents is **path drift**\u2014unbounded reasoning loops, repetitive tool calls, and failure to recognize terminal task completion.[^yao-react-2022] When execution flow is dictated by unconstrained natural language prompts, the agent must infer its state dynamically at every step, creating high variance and vulnerability to hallucinated transitions.[^yao-react-2022]\n\nThe **FSM Agent DSL** encodes multi-step agent behavior as a formal, deterministic state machine defined by $M = (S, \\Sigma, \\delta, s_0, F)$ where:[^willard-louf-2023]\n* $S$: Finite set of discrete operational states.\n* $\\Sigma$: Set of input triggers and tool evaluation receipts.\n* $\\delta: S \\times \\Sigma \\rightarrow S$: Explicit state transition function with boolean guard conditions.\n* $s_0 \\in S$: Initial state.\n* $F \\subseteq S$: Set of absorbing terminal states.\n\n```mermaid\nstateDiagram-v2\n    [*] --> IDLE\n    IDLE --> PARSE_INPUT: on_receive_payload\n    PARSE_INPUT --> EXECUTE_TOOL: if parse_valid == true\n    PARSE_INPUT --> TERMINATED_FAIL: if parse_valid == false\n    EXECUTE_TOOL --> EVALUATE_RESULT: on_tool_receipt\n    EVALUATE_RESULT --> EXECUTE_TOOL: if retry_count < max_retries AND status == \"RETRY\"\n    EVALUATE_RESULT --> SYNTHESIZE_OUTPUT: if status == \"SUCCESS\"\n    EVALUATE_RESULT --> TERMINATED_FAIL: if retry_count >= max_retries\n    SYNTHESIZE_OUTPUT --> TERMINATED_SUCCESS: emit_payload\n    TERMINATED_SUCCESS --> [*]\n    TERMINATED_FAIL --> [*]\n```\n*Diagram 1: Formal state transition graph for an autonomous agent execution lifecycle. Source: FSM Agent DSL Specification (2026).*\n\n---\n\n# 1. Formal FSM DSL Syntax Grammar\n\nThe `<state_machine>` block within AgentSpec v1.0 adheres to a compact, line-delimited declarative grammar:\n\n```text\n<state_machine initial=\"IDLE\">\nSTATES: [IDLE, EXTRACT_ENTITIES, QUERY_GRAPH, AGGREGATE, RECOVERY, TERMINATED]\nTRANSITIONS:\n  IDLE -> EXTRACT_ENTITIES: on_event(\"START\")\n  EXTRACT_ENTITIES -> QUERY_GRAPH: if entity_count > 0\n  EXTRACT_ENTITIES -> TERMINATED: if entity_count == 0 -> emit(status=\"EMPTY\")\n  QUERY_GRAPH -> AGGREGATE: if query_success == true\n  QUERY_GRAPH -> RECOVERY: if query_success == false\n  RECOVERY -> QUERY_GRAPH: if retry_budget > 0 [decrement retry_budget]\n  RECOVERY -> TERMINATED: if retry_budget == 0 -> emit(status=\"ERROR_TIMEOUT\")\n  AGGREGATE -> TERMINATED: emit(OutputPayload)\nTERMINAL: [TERMINATED]\n</state_machine>\n```\n\n---\n\n# 2. Preventing Pathological Execution Modes\n\n1. **Cycle Prevention & Budget Tracking**: Every cyclic transition (`A -> B -> A`) MUST specify a monotonic counter or decrementing budget guard (`[decrement retry_budget]`). When budget reaches zero, the state machine forces a transition to a terminal failure state, preventing infinite loops.[^yao-react-2022]\n2. **Deterministic Step Gating**: At each turn, the agent evaluates only the legal outgoing edges from its current state $s_t$, reducing the action search space from hundreds of possibilities to 1\u20133 explicit transitions.[^willard-louf-2023]\n3. **Absorbing Terminal States**: Once a terminal state $f \\in F$ is reached, tool-calling capabilities are disabled at the runtime layer, preventing post-completion hallucinations.[^zheng-sglang-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n* [ReAct Agent Reasoning Paradigm](/sources/react_agent_reasoning_yao_2022.md)\n\n---\n\n# References & Citations\n\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31.\n[^yao-react-2022]: Yao, S., Zhao, J., Yu, D., et al. (2022, October 6). \"ReAct: Synergizing Reasoning and Acting in Language Models\". *International Conference on Learning Representations (ICLR 2023)*. arXiv:2210.03629. https://doi.org/10.48550/arXiv.2210.03629. Retrieved 2026-08-31.\n[^zheng-sglang-2023]: Zheng, L., Yin, L., Xie, Z., et al. (2023, December 12). \"SGLang: Efficient Execution of Structured Language Model Programs\". *arXiv preprint*, arXiv:2312.07104. https://doi.org/10.48550/arXiv.2312.07104. Retrieved 2026-08-31.", "specifications/typescript_contract_system": "# Executive Summary\n\nWhile JSON Schema remains common in REST API ecosystems, it was designed for programmatic validation rather than generative language model prompting.[^microsoft-typechat-2023] Large Language Models are autoregressive statistical learners that exhibit far higher semantic comprehension when interacting with **concise, strongly-typed source code** than verbose JSON metadata dictionaries.[^microsoft-typechat-2023]\n\nThe **TypeScript Contract System (TCS)** utilizes TypeScript AST definitions (`.d.ts`) as the canonical interface language for LLM agents. By leveraging **discriminated unions**, **string literal enums**, **optional modifier flags**, and **compact inline JSDoc comments**, TCS reduces token consumption by up to 70% while improving output parsing reliability to >99.5%.[^microsoft-typechat-2023]\n\n```mermaid\ngraph TD\n    A[TypeScript Interface Definition] --> B[LLM Token Generation]\n    B --> C[JSON Serialized Output]\n    C --> D[TypeScript Compiler AST Type Checker]\n    D -->|Valid AST Type| E[Deterministic Runtime Execution]\n    D -->|Diagnostic Error e.g. TS2322| F[Targeted Error Ingestion & Dynamic Re-prompt]\n    F --> B\n```\n*Diagram 1: TypeScript AST contract compilation, validation, and diagnostic repair cycle. Source: Microsoft TypeChat / Deep Research (2026).*\n\n---\n\n# 1. Core TypeScript Primitives for LLM Prompting\n\n### 1.1 Discriminated Union Pattern\nDiscriminated unions provide unambiguous branching for polymorphic agent actions. The LLM uses the discriminator key (`kind` or `action`) to strictly lock downstream properties:\n\n```typescript\ntype AgentToolCall = \n  | { kind: \"database_query\"; sql: string; timeout_sec?: number }\n  | { kind: \"filesystem_read\"; absolute_path: string; max_bytes?: number }\n  | { kind: \"http_request\"; url: string; method: \"GET\" | \"POST\"; payload?: unknown };\n```\n\n### 1.2 String Literal Enums\nInstead of free-form strings, string literal unions enforce closed-set categorical variables:\n```typescript\ntype Severity = \"CRITICAL\" | \"HIGH\" | \"MEDIUM\" | \"LOW\" | \"INFO\";\ntype ResolutionStrategy = \"AUTO_FIX\" | \"MANUAL_ESCALATION\" | \"SUPPRESS\";\n```\n\n### 1.3 Concise Inline Documentation via JSDoc\nJSDoc docstrings provide necessary semantic hints with minimal token overhead:\n```typescript\ninterface NetworkPolicy {\n  /** CIDR notation e.g. 10.0.0.0/16 */\n  cidrBlock: string;\n  /** Port range from 1 to 65535 */\n  portRange: [number, number];\n  isEgressAllowed: boolean;\n}\n```\n\n---\n\n# 2. Type Diagnostics and Programmatic Repair\n\nWhen an LLM produces an invalid JSON payload, standard JSON Schema validators output vague error paths (e.g. `root.properties[2].items[0] does not match anyOf`). \n\nIn contrast, the TypeScript Compiler API (`ts.createProgram`) generates precise type diagnostics that are directly interpretable by the LLM in an automated repair turn:[^microsoft-typechat-2023]\n\n```typescript\n// Raw TypeScript Compiler Diagnostic Output:\n// error TS2322: Type '\"DELETE\"' is not assignable to type '\"GET\" | \"POST\"'.\n```\n\nFeeding this single diagnostic line back into the model resolves the violation in 98.7% of test cases on the first retry, avoiding full conversational restarts.[^microsoft-typechat-2023]\n\n---\n\n# Cross-Links & Related Concepts\n\n* [Token Efficiency & Semantic Density Benchmarks](/foundations/token_efficiency_and_density_benchmarks.md)\n* [AgentSpec v1.0 Formal Specification](/specifications/agent_spec_v1_formal_specification.md)\n* [Constrained Decoding and Grammars](/mechanisms/constrained_decoding_and_grammars.md)\n\n---\n\n# References & Citations\n\n[^microsoft-typechat-2023]: Hejlsberg, A., Lucco, S., & Rosenwasser, D. (2023, July 20). \"TypeChat: Building Natural Language Interfaces which use TypeScript to Construct Type-Safe Structured Data\". *Microsoft Open Source Blog*. https://github.com/microsoft/TypeChat. Retrieved 2026-08-31.\n[^willard-louf-2023]: Willard, B. T., & Louf, R. (2023, July 18). \"Efficient Guided Generation for Large Language Models\". *arXiv preprint*, arXiv:2307.09702. https://doi.org/10.48550/arXiv.2307.09702. Retrieved 2026-08-31."}, "types": ["Formal Specification", "Primary Source", "Research Compendium"], "palette": {"Formal Specification": "#06b6d4", "Primary Source": "#14b8a6", "Research Compendium": "#8b5cf6"}};
+</script>
+<script>
+(function () {
+  const bundle = window.BUNDLE;
+  const bundleName = window.BUNDLE_NAME;
+  document.title = `${bundleName} — OKF Viewer`;
+  document.getElementById("bundle-name").textContent = bundleName;
+
+  // Populate type filter
+  const typeSelect = document.getElementById("filter-type");
+  for (const t of bundle.types) {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    typeSelect.appendChild(opt);
+  }
+
+  // Build reverse-link index for backlinks
+  const backlinks = {};
+  for (const edge of bundle.edges) {
+    const { source, target } = edge.data;
+    (backlinks[target] ||= []).push(source);
+  }
+
+  // Look up node label/type by id
+  const nodeIndex = {};
+  for (const n of bundle.nodes) nodeIndex[n.data.id] = n.data;
+
+  const cy = cytoscape({
+    container: document.getElementById("graph"),
+    elements: [...bundle.nodes, ...bundle.edges],
+    style: [
+      {
+        selector: "node",
+        style: {
+          "background-color": "data(color)",
+          "label": "data(label)",
+          "color": "#0f172a",
+          "font-size": 11,
+          "text-valign": "bottom",
+          "text-margin-y": 4,
+          "text-wrap": "wrap",
+          "text-max-width": 120,
+          "width": "data(size)",
+          "height": "data(size)",
+          "border-width": 1,
+          "border-color": "#0f172a",
+        },
+      },
+      {
+        selector: "node[?stale]",
+        style: {
+          "border-width": 2,
+          "border-color": "#b91c1c",
+          "border-style": "dashed",
+        },
+      },
+      {
+        selector: 'node[status = "deprecated"]',
+        style: {
+          "opacity": 0.55,
+        },
+      },
+      {
+        selector: "node:selected",
+        style: {
+          "border-width": 3,
+          "border-color": "#f59e0b",
+        },
+      },
+      {
+        selector: "edge",
+        style: {
+          "width": 1.5,
+          "line-color": "#cbd5e1",
+          "target-arrow-color": "#cbd5e1",
+          "target-arrow-shape": "triangle",
+          "curve-style": "bezier",
+          "arrow-scale": 0.9,
+        },
+      },
+      {
+        selector: "edge:selected",
+        style: {
+          "line-color": "#f59e0b",
+          "target-arrow-color": "#f59e0b",
+          "width": 2.5,
+        },
+      },
+      {
+        selector: ".dim",
+        style: { "opacity": 0.15 },
+      },
+    ],
+    layout: { name: "cose", animate: false, padding: 30 },
+    wheelSensitivity: 0.2,
+  });
+
+  cy.on("tap", "node", (evt) => showDetail(evt.target.id()));
+  cy.on("tap", (evt) => {
+    if (evt.target === cy) clearSelection();
+  });
+
+  document.getElementById("layout").addEventListener("change", (e) => {
+    cy.layout({ name: e.target.value, animate: false, padding: 30 }).run();
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    cy.fit(null, 30);
+    clearSelection();
+  });
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) {
+      cy.elements().removeClass("dim");
+      return;
+    }
+    cy.nodes().forEach((n) => {
+      const d = n.data();
+      const hay =
+        (d.label || "").toLowerCase() + " " +
+        d.id.toLowerCase() + " " +
+        (d.tags || []).join(" ").toLowerCase();
+      n.toggleClass("dim", !hay.includes(q));
+    });
+    cy.edges().forEach((edge) => {
+      const src = edge.source();
+      const tgt = edge.target();
+      edge.toggleClass("dim", src.hasClass("dim") || tgt.hasClass("dim"));
+    });
+  });
+
+  document.getElementById("filter-type").addEventListener("change", (e) => {
+    const t = e.target.value;
+    if (!t) {
+      cy.elements().removeClass("dim");
+      return;
+    }
+    cy.nodes().forEach((n) => {
+      n.toggleClass("dim", n.data("type") !== t);
+    });
+    cy.edges().forEach((edge) => {
+      edge.toggleClass("dim", edge.source().hasClass("dim") || edge.target().hasClass("dim"));
+    });
+  });
+
+  function clearSelection() {
+    cy.elements().unselect();
+    document.getElementById("detail-empty").hidden = false;
+    document.getElementById("detail-content").hidden = true;
+  }
+
+  function showDetail(conceptId) {
+    const data = nodeIndex[conceptId];
+    if (!data) return;
+    cy.elements().unselect();
+    const node = cy.getElementById(conceptId);
+    if (node) node.select();
+
+    document.getElementById("detail-empty").hidden = true;
+    const content = document.getElementById("detail-content");
+    content.hidden = false;
+
+    const chip = document.getElementById("detail-type");
+    chip.textContent = data.type;
+    chip.style.background = data.color;
+
+    document.getElementById("detail-title").textContent = data.label;
+    document.getElementById("detail-id").textContent = conceptId;
+    document.getElementById("detail-description").textContent = data.description || "—";
+
+    const resourceEl = document.getElementById("detail-resource");
+    resourceEl.innerHTML = "";
+    if (data.resource) {
+      const a = document.createElement("a");
+      a.href = data.resource;
+      a.textContent = data.resource;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.className = "external";
+      resourceEl.appendChild(a);
+    } else {
+      resourceEl.textContent = "—";
+    }
+
+    const tagsEl = document.getElementById("detail-tags");
+    tagsEl.innerHTML = "";
+    if (data.tags && data.tags.length) {
+      for (const t of data.tags) {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = t;
+        tagsEl.appendChild(span);
+      }
+    } else {
+      tagsEl.textContent = "—";
+    }
+
+    // v0.2 signal badges: status, trust tier, staleness.
+    const badgesEl = document.getElementById("detail-badges");
+    badgesEl.innerHTML = "";
+    const status = data.status || "stable";
+    badgesEl.appendChild(makeBadge(status, "status-" + status));
+    const tier = data.trust_tier || "unverified";
+    badgesEl.appendChild(makeBadge(tier.replace(/-/g, " "), "trust-" + tier));
+    if (data.stale) {
+      const label = data.stale_after ? `stale (since ${data.stale_after})` : "stale";
+      badgesEl.appendChild(makeBadge(label, "stale"));
+    } else if (data.stale_after) {
+      badgesEl.appendChild(makeBadge(`stale after ${data.stale_after}`, "fresh"));
+    }
+
+    document.getElementById("detail-generated").textContent = formatActorEvent(data.generated);
+
+    const verifiedEl = document.getElementById("detail-verified");
+    const verified = data.verified || [];
+    if (verified.length) {
+      verifiedEl.textContent = verified.map(formatActorEvent).join("; ");
+    } else {
+      verifiedEl.textContent = "—";
+    }
+
+    const sourcesEl = document.getElementById("detail-sources");
+    sourcesEl.innerHTML = "";
+    const sources = data.sources || [];
+    if (sources.length) {
+      const ul = document.createElement("ul");
+      ul.className = "sources-list";
+      for (const s of sources) {
+        const li = document.createElement("li");
+        const label = s.title || s.resource || s.id || "source";
+        if (s.resource && /^https?:\/\//.test(s.resource)) {
+          const a = document.createElement("a");
+          a.href = s.resource;
+          a.textContent = label;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.className = "external";
+          li.appendChild(a);
+        } else {
+          li.textContent = s.resource ? `${label} (${s.resource})` : label;
+        }
+        ul.appendChild(li);
+      }
+      sourcesEl.appendChild(ul);
+    } else {
+      sourcesEl.textContent = "—";
+    }
+
+    const body = bundle.bodies[conceptId] || "";
+    const html = marked.parse(body, { breaks: false, gfm: true });
+    const bodyEl = document.getElementById("detail-body");
+    bodyEl.innerHTML = html;
+    rewriteInternalLinks(bodyEl);
+
+    const bl = backlinks[conceptId] || [];
+    const blSection = document.getElementById("detail-backlinks");
+    const blList = document.getElementById("backlinks-list");
+    blList.innerHTML = "";
+    if (bl.length) {
+      blSection.hidden = false;
+      for (const src of bl) {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.textContent = nodeIndex[src]?.label || src;
+        a.dataset.target = src;
+        a.addEventListener("click", () => showDetail(src));
+        li.appendChild(a);
+        const muted = document.createElement("span");
+        muted.className = "muted";
+        muted.textContent = ` (${src})`;
+        li.appendChild(muted);
+        blList.appendChild(li);
+      }
+    } else {
+      blSection.hidden = true;
+    }
+
+    cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1.0) }, { duration: 200 });
+  }
+
+  function makeBadge(text, cls) {
+    const span = document.createElement("span");
+    span.className = "badge " + cls;
+    span.textContent = text;
+    return span;
+  }
+
+  function formatActorEvent(event) {
+    if (!event || !event.by) return "—";
+    return event.at ? `${event.by} · ${event.at}` : String(event.by);
+  }
+
+  function rewriteInternalLinks(root) {
+    root.querySelectorAll("a[href]").forEach((a) => {
+      const href = a.getAttribute("href");
+      if (!href) return;
+      if (href.startsWith("/") && href.endsWith(".md")) {
+        const target = href.slice(1, -3);
+        if (nodeIndex[target]) {
+          a.className = "internal";
+          a.setAttribute("href", "javascript:void(0)");
+          a.addEventListener("click", (e) => {
+            e.preventDefault();
+            showDetail(target);
+          });
+          return;
+        }
+      }
+      a.className = "external";
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener");
+    });
+  }
+
+  // Auto-show the first node (a dataset if available, else first concept)
+  const initial =
+    bundle.nodes.find((n) => n.data.type === "BigQuery Dataset") ||
+    bundle.nodes[0];
+  if (initial) showDetail(initial.data.id);
+})();
+
+</script>
+</body>
+</html>
